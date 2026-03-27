@@ -244,6 +244,88 @@ def expensive_unplayed_chart(data: list[tuple[str, float]]) -> go.Figure:
 
 # --- Feature 6: Game Timeline Chart ---
 
+def summary_card_figure(
+    persona_name: str,
+    title: str,
+    emoji: str,
+    description: str,
+    stats: dict,
+    account_years: int,
+    top3: list[tuple[str, float]],
+    genre_tags: list[str] | None = None,
+    avatar_url: str = "",
+) -> go.Figure:
+    """Build the summary card as a Plotly figure for PNG download."""
+    fig = go.Figure()
+    fig.update_xaxes(visible=False, range=[0, 500])
+    fig.update_yaxes(visible=False, range=[0, 600])
+
+    # Background
+    fig.add_shape(type="rect", x0=0, y0=0, x1=500, y1=600,
+                  fillcolor="#1a1a2e", line=dict(width=0))
+    fig.add_shape(type="rect", x0=0, y0=0, x1=500, y1=300,
+                  fillcolor="#16213e", line=dict(width=0))
+
+    # Avatar
+    if avatar_url:
+        fig.add_layout_image(dict(
+            source=avatar_url, x=30, y=565, xref="x", yref="y",
+            sizex=56, sizey=56, xanchor="left", yanchor="top",
+            layer="above",
+        ))
+
+    # Player name and personality
+    fig.add_annotation(x=100, y=555, text=f"<b>{persona_name}</b>",
+                       font=dict(size=20, color="white"), showarrow=False, xanchor="left", yanchor="top")
+    fig.add_annotation(x=100, y=530, text=f"{emoji} {title}",
+                       font=dict(size=14, color="#aaaaaa"), showarrow=False, xanchor="left", yanchor="top")
+    fig.add_annotation(x=250, y=490, text=description,
+                       font=dict(size=12, color="#888888"), showarrow=False, xanchor="center", yanchor="top",
+                       width=440)
+
+    # Stats row
+    stat_items = [
+        (f"{stats['total_games']:,}", "Games"),
+        (f"{stats['total_hours']:,.0f}", "Hours"),
+        (f"{stats['pct_played']}%", "Played"),
+        (f"{account_years}y", "Account"),
+    ]
+    for i, (val, label) in enumerate(stat_items):
+        cx = 65 + i * 120
+        fig.add_annotation(x=cx, y=440, text=f"<b>{val}</b>",
+                           font=dict(size=18, color="white"), showarrow=False, xanchor="center")
+        fig.add_annotation(x=cx, y=418, text=label,
+                           font=dict(size=11, color="#888888"), showarrow=False, xanchor="center")
+
+    # Top 3 games
+    fig.add_annotation(x=30, y=385, text="🏆 TOP GAMES",
+                       font=dict(size=12, color="#888888"), showarrow=False, xanchor="left")
+    for i, (name, hours) in enumerate(top3[:3]):
+        y = 360 - i * 25
+        fig.add_annotation(x=30, y=y, text=name,
+                           font=dict(size=14, color="white"), showarrow=False, xanchor="left")
+        fig.add_annotation(x=470, y=y, text=f"{hours:,.0f}h",
+                           font=dict(size=14, color="#1b9e77"), showarrow=False, xanchor="right")
+
+    # Genre tags
+    if genre_tags:
+        tag_text = " · ".join(genre_tags[:5])
+        fig.add_annotation(x=250, y=270, text=tag_text,
+                           font=dict(size=12, color="#1b9e77"), showarrow=False, xanchor="center")
+
+    # Watermark
+    fig.add_annotation(x=250, y=20, text="steamstatsvisualized.streamlit.app",
+                       font=dict(size=11, color="#555555"), showarrow=False, xanchor="center")
+
+    fig.update_layout(
+        width=500, height=600,
+        plot_bgcolor="#1a1a2e", paper_bgcolor="#1a1a2e",
+        margin=dict(l=0, r=0, t=0, b=0),
+        template=DARK_TEMPLATE,
+    )
+    return fig
+
+
 def game_timeline_chart(timeline_df: pd.DataFrame) -> go.Figure:
     """Horizontal scatter plot showing when games were last played."""
     if timeline_df.empty:
