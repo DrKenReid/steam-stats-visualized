@@ -130,6 +130,23 @@ except ValueError as e:
     st.stop()
 
 df_all = build_games_df(games_raw)
+
+# --- Resolve Player 2 early so errors show at the top ---
+p2_error = None
+steam_id_2 = None
+profile_2 = None
+games_raw_2 = None
+if compare_mode and user_input_2:
+    try:
+        with st.spinner("Resolving Player 2..."):
+            steam_id_2 = parse_steam_input(user_input_2)
+            profile_2 = get_player_summary(steam_id_2)
+            games_raw_2 = get_owned_games(steam_id_2)
+    except ValueError as e:
+        p2_error = str(e)
+        st.error(f"⚔️ Player 2 error: {e}")
+        st.warning("Showing Player 1 stats only. Fix Player 2's profile to see the comparison.")
+
 df = apply_time_filter(df_all, "last_2_weeks" if is_2weeks else "all_time")
 if is_2weeks and df.empty:
     st.warning("No games played in the last 2 weeks. Showing all-time stats instead.")
@@ -463,19 +480,9 @@ else:
     st.info("No recent activity. Touch grass achieved? 🌿")
 
 # ─── Head-to-Head Comparison ─────────────────────────────────────────
-if compare_mode and user_input_2:
+if compare_mode and user_input_2 and not p2_error and games_raw_2:
     st.divider()
     st.header("⚔️ Head-to-Head Comparison")
-
-    # Fetch Player 2 data
-    try:
-        with st.spinner("Loading Player 2..."):
-            steam_id_2 = parse_steam_input(user_input_2)
-            profile_2 = get_player_summary(steam_id_2)
-            games_raw_2 = get_owned_games(steam_id_2)
-    except ValueError as e:
-        st.error(f"Player 2: {e}")
-        st.stop()
 
     df_2 = build_games_df(games_raw_2)
     stats_2 = key_stats(df_2)
