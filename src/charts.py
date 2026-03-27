@@ -1,5 +1,7 @@
 """Plotly chart builders."""
 
+from __future__ import annotations
+
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd

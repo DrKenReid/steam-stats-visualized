@@ -1,5 +1,7 @@
 """Data processing, metrics, and commentary generation."""
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
 import pandas as pd
 

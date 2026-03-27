@@ -1,5 +1,7 @@
 """Steam API client with caching."""
 
+from __future__ import annotations
+
 import re
 import time
 import requests
