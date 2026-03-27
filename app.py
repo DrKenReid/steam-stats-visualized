@@ -23,36 +23,11 @@ from src.charts import (
     top_games_chart, playtime_histogram, genre_treemap,
     cost_per_hour_chart, recent_games_chart, platform_pie_chart,
     shared_games_chart, stats_comparison_chart, top_games_comparison_chart,
-    expensive_unplayed_chart, summary_card_figure,
+    expensive_unplayed_chart,
 )
 
 st.set_page_config(page_title="Steam Stats Visualized", page_icon="🎮", layout="wide")
 
-
-def download_chart(fig, filename, key, title="", player_name=""):
-    """Add a download button for a Plotly chart as PNG."""
-    try:
-        import copy
-        export_fig = copy.deepcopy(fig)
-        if title:
-            export_fig.update_layout(
-                title=dict(text=title, font=dict(size=20, color="white"), x=0.5, xanchor="center"),
-                margin=dict(t=60),
-            )
-        if player_name:
-            safe_name = player_name.replace(" ", "_").replace("/", "_")[:20]
-            base, ext = filename.rsplit(".", 1)
-            filename = f"{base}_{safe_name}.{ext}"
-        img_bytes = export_fig.to_image(format="png", width=1200, height=700, scale=2)
-        st.download_button(
-            label="⬇️ Save as Image",
-            data=img_bytes,
-            file_name=filename,
-            mime="image/png",
-            key=f"dl_{key}",
-        )
-    except Exception as e:
-        pass  # kaleido not available
 
 # Plotly config to make the camera/download button more visible
 PLOTLY_CONFIG = {
@@ -302,7 +277,6 @@ if not show_comparison:
         top_hours = top.iloc[0]["hours"]
         st.markdown(top_game_roast(top_name, top_hours))
         st.plotly_chart(top_games_chart(top), width="stretch", key="top_games", config=PLOTLY_CONFIG)
-        download_chart(top_games_chart(top), "top_10_games.png", "top_games", title=f"{persona_name}'s Top 10 Games by Playtime", player_name=persona_name)
         share_buttons("Top 10", f"🏆 My most played Steam game is {top_name} with {top_hours:,.0f} hours!", my_share_url)
 
     # ─── Platform Breakdown ─────────────────────────────────────────
@@ -312,7 +286,6 @@ if not show_comparison:
         col_plat_chart, col_plat_info = st.columns([2, 3])
         with col_plat_chart:
             st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="platform_pie", config=PLOTLY_CONFIG)
-            download_chart(platform_pie_chart(platforms), "platform_breakdown.png", "platform_pie", title=f"{persona_name}'s Gaming Platforms", player_name=persona_name)
         with col_plat_info:
             for platform, hours in sorted(platforms.items(), key=lambda x: -x[1]):
                 pct = round(100 * hours / sum(platforms.values()), 1)
@@ -350,7 +323,6 @@ if not show_comparison:
     st.subheader("📊 Playtime Distribution")
     st.caption("Spoiler: most of your games have barely been touched.")
     st.plotly_chart(playtime_histogram(df), width="stretch", key="playtime_hist", config=PLOTLY_CONFIG)
-    download_chart(playtime_histogram(df), "playtime_distribution.png", "playtime_hist", title=f"{persona_name}'s Playtime Distribution", player_name=persona_name)
     share_buttons("Distribution", f"📊 My Steam playtime distribution is... concerning.", my_share_url)
 
     # ─── Genre Breakdown & Cost Per Hour ────────────────────────────
@@ -378,7 +350,6 @@ if not show_comparison:
             st.markdown(genre_commentary(top_genre))
             top_genre_map = top_games_per_genre(genre_df)
             st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap", config=PLOTLY_CONFIG)
-            download_chart(genre_treemap(genre_df, top_games_map=top_genre_map), "genre_breakdown.png", "genre_treemap", title=f"{persona_name}'s Genre Breakdown", player_name=persona_name)
             tags = genre_personality_tags(genre_df)
             if tags:
                 pills_html = " ".join(
@@ -402,7 +373,6 @@ if not show_comparison:
                 st.markdown(genre_commentary(top_genre))
                 top_genre_map = top_games_per_genre(genre_df)
                 st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap", config=PLOTLY_CONFIG)
-                download_chart(genre_treemap(genre_df, top_games_map=top_genre_map), "genre_breakdown.png", "genre_treemap", title=f"{persona_name}'s Genre Breakdown", player_name=persona_name)
                 tags = genre_personality_tags(genre_df)
                 if tags:
                     pills_html = " ".join(
@@ -427,10 +397,8 @@ if not show_comparison:
                 tab_best, tab_worst = st.tabs(["Best Value", "Worst Value"])
                 with tab_best:
                     st.plotly_chart(cost_per_hour_chart(cph, best=True), width="stretch", key="cost_best", config=PLOTLY_CONFIG)
-                    download_chart(cost_per_hour_chart(cph, best=True), "best_value_games.png", "cost_best", title=f"{persona_name}'s Best Value Games", player_name=persona_name)
                 with tab_worst:
                     st.plotly_chart(cost_per_hour_chart(cph, best=False), width="stretch", key="cost_worst", config=PLOTLY_CONFIG)
-                    download_chart(cost_per_hour_chart(cph, best=False), "worst_value_games.png", "cost_worst", title=f"{persona_name}'s Worst Value Games", player_name=persona_name)
                 share_buttons("Cost", f"💰 Best value Steam game: {best_name} at ${best_val:.2f}/hour!", my_share_url)
             else:
                 st.info("No price data available.")
@@ -452,7 +420,6 @@ if not show_comparison:
                             f"Runner-up: **{expensive[1][0]}** ({_p2}). "
                             f"The audacity. 💅")
             st.plotly_chart(expensive_unplayed_chart(expensive), width="stretch", key="expensive_unplayed", config=PLOTLY_CONFIG)
-            download_chart(expensive_unplayed_chart(expensive), "most_expensive_unplayed.png", "expensive_unplayed", title=f"{persona_name}'s Most Expensive Unplayed Games", player_name=persona_name)
             share_buttons("Expensive", f"💸 I have ${total_wasted:.2f} worth of unplayed Steam games. I'm basically a charity.", my_share_url)
 
     # ─── Achievement Stats ──────────────────────────────────────────
@@ -575,7 +542,6 @@ if not show_comparison:
     st.subheader("🕹️ Recently Played (Last 2 Weeks)")
     if recent:
         st.plotly_chart(recent_games_chart(recent), width="stretch", key="recent_games", config=PLOTLY_CONFIG)
-        download_chart(recent_games_chart(recent), "recently_played.png", "recent_games", title=f"{persona_name}'s Recently Played Games", player_name=persona_name)
         recent_names = ", ".join(g["name"] for g in recent[:3])
         share_buttons("Recent", f"🕹️ Recently playing: {recent_names}", my_share_url)
     else:
@@ -604,7 +570,6 @@ if not show_comparison:
     timeline = game_timeline(df_all, n=20)
     if not timeline.empty:
         st.plotly_chart(game_timeline_chart(timeline), width="stretch", key="timeline", config=PLOTLY_CONFIG)
-        download_chart(game_timeline_chart(timeline), "game_timeline.png", "timeline", title=f"{persona_name}'s Game Timeline", player_name=persona_name)
         st.caption("Your recent gaming history at a glance")
     else:
         st.info("No timeline data available.")
@@ -734,25 +699,105 @@ if not show_comparison:
             _card_genre_tags = genre_df["genre"].value_counts().head(3).index.tolist()
     except Exception:
         pass
-    _summary_fig = summary_card_figure(
-        persona_name=persona_name, title=title, emoji=emoji,
-        description=description, stats=stats, account_years=account_years,
-        top3=_card_top3_data, genre_tags=_card_genre_tags,
-        avatar_url=profile.get("avatarfull", ""),
-    )
-    # Explicit download for summary card — don't silently fail
+    # Generate downloadable summary card with Pillow
     try:
-        _card_bytes = _summary_fig.to_image(format="png", width=500, height=600, scale=2)
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        import requests as req_lib
+
+        W, H = 500, 600
+        img = Image.new("RGB", (W, H), color=(26, 26, 46))
+        draw = ImageDraw.Draw(img)
+
+        # Gradient background (approximate)
+        for y in range(H):
+            r = int(26 + (22 - 26) * y / H)
+            g = int(26 + (33 - 26) * y / H)
+            b = int(46 + (62 - 46) * y / H)
+            draw.line([(0, y), (W, y)], fill=(r, g, b))
+
+        # Try to load avatar
+        try:
+            avatar_resp = req_lib.get(profile.get("avatarfull", ""), timeout=5)
+            avatar_img = Image.open(io.BytesIO(avatar_resp.content)).resize((56, 56))
+            # Make circular mask
+            mask = Image.new("L", (56, 56), 0)
+            ImageDraw.Draw(mask).ellipse((0, 0, 55, 55), fill=255)
+            img.paste(avatar_img, (24, 24), mask)
+        except Exception:
+            draw.ellipse((24, 24, 80, 80), fill=(27, 158, 119))
+
+        # Use default font (can't guarantee custom fonts on Streamlit Cloud)
+        try:
+            font_lg = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+            font_md = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+            font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+            font_xs = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+        except Exception:
+            font_lg = ImageFont.load_default()
+            font_md = font_lg
+            font_sm = font_lg
+            font_xs = font_lg
+
+        # Player name & personality
+        draw.text((92, 30), persona_name, fill="white", font=font_lg)
+        draw.text((92, 55), f"{title}", fill=(170, 170, 170), font=font_md)
+
+        # Stats row
+        y_stats = 100
+        draw.rounded_rectangle([(20, y_stats), (W - 20, y_stats + 60)], radius=8, fill=(255, 255, 255, 13))
+        stat_items = [
+            (f"{stats['total_games']:,}", "Games"),
+            (f"{stats['total_hours']:,.0f}", "Hours"),
+            (f"{stats['pct_played']}%", "Played"),
+            (f"{account_years}y", "Account"),
+        ]
+        col_w = (W - 40) // 4
+        for i, (val, label) in enumerate(stat_items):
+            x = 20 + col_w * i + col_w // 2
+            draw.text((x, y_stats + 10), val, fill="white", font=font_md, anchor="mt")
+            draw.text((x, y_stats + 32), label, fill=(136, 136, 136), font=font_xs, anchor="mt")
+
+        # Top games
+        y_top = 180
+        draw.text((24, y_top), "TOP GAMES", fill=(136, 136, 136), font=font_xs)
+        for i, (name, hours) in enumerate(_card_top3_data[:3]):
+            _y = y_top + 20 + i * 24
+            name_trunc = name[:30] + "..." if len(name) > 30 else name
+            draw.text((24, _y), name_trunc, fill="white", font=font_sm)
+            hours_str = f"{hours:,.0f}h"
+            bbox = draw.textbbox((0, 0), hours_str, font=font_sm)
+            draw.text((W - 24 - (bbox[2] - bbox[0]), _y), hours_str, fill=(27, 158, 119), font=font_sm)
+
+        # Genre tags
+        y_genres = y_top + 100
+        tag_x = 24
+        for tag in _card_genre_tags[:3]:
+            bbox = draw.textbbox((0, 0), tag, font=font_xs)
+            tw = bbox[2] - bbox[0]
+            draw.rounded_rectangle([(tag_x, y_genres), (tag_x + tw + 16, y_genres + 22)], radius=11, fill=(27, 158, 119))
+            draw.text((tag_x + 8, y_genres + 4), tag, fill="white", font=font_xs)
+            tag_x += tw + 24
+
+        # Watermark
+        draw.line([(20, H - 40), (W - 20, H - 40)], fill=(51, 51, 51))
+        wm = "steamstatsvisualized.streamlit.app"
+        bbox = draw.textbbox((0, 0), wm, font=font_xs)
+        draw.text(((W - (bbox[2] - bbox[0])) // 2, H - 30), wm, fill=(85, 85, 85), font=font_xs)
+
+        # Export
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
         _card_fname = f"steam_summary_{persona_name.replace(' ', '_')[:20]}.png"
         st.download_button(
             label="⬇️ Download Summary Card",
-            data=_card_bytes,
+            data=buf.getvalue(),
             file_name=_card_fname,
             mime="image/png",
             key="dl_summary_card",
         )
     except Exception as e:
-        st.caption(f"📷 To save this card, take a screenshot. (Image export unavailable: {e})")
+        st.caption(f"📷 To save this card, take a screenshot.")
 
     share_buttons("Summary Card", f"🎮 Check out my Steam stats! {emoji} {title} — {stats['total_games']} games, {stats['total_hours']:,.0f} hours!", my_share_url)
 
@@ -811,7 +856,6 @@ if show_comparison:
             f"→ {winner_icon} {winner_text}"
         )
     st.plotly_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), width="stretch", key="stats_compare", config=PLOTLY_CONFIG)
-    download_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), "stats_showdown.png", "stats_compare", title=f"{persona_name} vs {persona_name_2} — Stats Showdown")
     share_buttons("Stats Showdown", f"⚔️ Steam Stats Showdown: {persona_name} vs {persona_name_2}!", my_share_url)
 
     # --- Shared Games ---
@@ -825,12 +869,10 @@ if show_comparison:
     col_u2.metric(f"🎯 Only {persona_name_2}", unique_p2)
     if not shared_df.empty:
         st.plotly_chart(shared_games_chart(shared_df, persona_name, persona_name_2), width="stretch", key="shared_games", config=PLOTLY_CONFIG)
-        download_chart(shared_games_chart(shared_df, persona_name, persona_name_2), "shared_games.png", "shared_games", title=f"{persona_name} vs {persona_name_2} — Shared Games")
 
     # --- Top Games Comparison ---
     st.subheader("🏆 Top Games Comparison")
     st.plotly_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), width="stretch", key="top_compare", config=PLOTLY_CONFIG)
-    download_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), "top_games_comparison.png", "top_compare", title=f"{persona_name} vs {persona_name_2} — Top Games")
 
     # --- Platform Breakdown Side by Side ---
     platforms_2 = platform_breakdown(df_2)
@@ -841,14 +883,12 @@ if show_comparison:
             st.markdown(f"**{persona_name}**")
             if platforms:
                 st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="p1_platform_pie", config=PLOTLY_CONFIG)
-                download_chart(platform_pie_chart(platforms), "platform_breakdown.png", "p1_platform_pie", title=f"{persona_name}'s Platforms", player_name=persona_name)
             else:
                 st.info("No platform data")
         with col_plat2:
             st.markdown(f"**{persona_name_2}**")
             if platforms_2:
                 st.plotly_chart(platform_pie_chart(platforms_2), width="stretch", key="p2_platform_pie", config=PLOTLY_CONFIG)
-                download_chart(platform_pie_chart(platforms_2), "platform_breakdown.png", "p2_platform_pie", title=f"{persona_name_2}'s Platforms", player_name=persona_name_2)
             else:
                 st.info("No platform data")
 
