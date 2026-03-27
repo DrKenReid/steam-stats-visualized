@@ -4,6 +4,22 @@ from datetime import datetime, timezone
 import pandas as pd
 
 
+def apply_time_filter(df: pd.DataFrame, filter_type: str = "all_time") -> pd.DataFrame:
+    """Return a DataFrame filtered for the chosen time period.
+
+    - "all_time": returns df unchanged.
+    - "last_2_weeks": replaces ``hours`` with ``hours_2weeks``, keeps only
+      games with ``hours_2weeks > 0``, and re-sorts.
+    """
+    if filter_type == "all_time":
+        return df
+    out = df.copy()
+    out["hours_alltime"] = out["hours"]          # preserve original
+    out["hours"] = out["hours_2weeks"]
+    out = out[out["hours"] > 0].sort_values("hours", ascending=False).reset_index(drop=True)
+    return out
+
+
 def build_games_df(games: list[dict]) -> pd.DataFrame:
     df = pd.DataFrame(games)
     df["hours"] = (df["playtime_forever"] / 60).round(1)
@@ -283,21 +299,339 @@ def platform_breakdown(df: pd.DataFrame) -> dict[str, float]:
     return platforms
 
 
-# --- Most expensive unplayed game ---
+# --- Most expensive unplayed game(s) ---
 
-def most_expensive_unplayed(unplayed_df: pd.DataFrame, store_details: dict[int, dict]) -> tuple[str, float] | None:
-    """Find the priciest game with 0 hours."""
-    most_expensive = None
-    max_price = 0
+def most_expensive_unplayed(unplayed_df: pd.DataFrame, store_details: dict[int, dict], n: int = 10) -> list[tuple[str, float]]:
+    """Find the top N priciest games with 0 hours. Returns list of (name, price) tuples."""
+    candidates = []
     for _, row in unplayed_df.iterrows():
         appid = row["appid"]
         if appid in store_details:
             price_data = store_details[appid].get("price_overview")
             if price_data:
                 price = price_data.get("final", 0) / 100
-                if price > max_price:
-                    max_price = price
-                    most_expensive = store_details[appid].get("name", row["name"])
-    if most_expensive and max_price > 0:
-        return (most_expensive, max_price)
-    return None
+                if price > 0:
+                    name = store_details[appid].get("name", row["name"])
+                    candidates.append((name, price))
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    return candidates[:n]
+
+
+# --- Top games per genre ---
+
+def top_games_per_genre(genre_df: pd.DataFrame, n: int = 3) -> dict[str, list[str]]:
+    """Return a dict mapping genre -> list of top N game names (by frequency in that genre)."""
+    if genre_df.empty:
+        return {}
+    result = {}
+    for genre, group in genre_df.groupby("genre"):
+        top_names = group["name"].value_counts().head(n).index.tolist()
+        result[genre] = top_names
+    return result
+
+
+# --- Achievement helpers ---
+
+def recent_achievements(steam_id: str, appids: list[int], get_player_achievements_fn, n: int = 10) -> list[dict]:
+    """Find the N most recently unlocked achievements across given games."""
+    all_achievements = []
+    for appid in appids:
+        data = get_player_achievements_fn(steam_id, appid)
+        if data and "achievements" in data:
+            game_name = data.get("gameName", f"App {appid}")
+            for ach in data["achievements"]:
+                if ach.get("achieved") and ach.get("unlocktime", 0) > 0:
+                    all_achievements.append({
+                        "game": game_name,
+                        "achievement_name": ach.get("name", ach.get("apiname", "Unknown")),
+                        "unlock_date": datetime.fromtimestamp(ach["unlocktime"], tz=timezone.utc).strftime("%Y-%m-%d"),
+                        "unlocktime": ach["unlocktime"],
+                    })
+    all_achievements.sort(key=lambda x: x["unlocktime"], reverse=True)
+    return all_achievements[:n]
+
+
+def rarest_achievements(steam_id: str, appids: list[int], get_player_achievements_fn, get_global_achievement_fn, n: int = 10) -> list[dict]:
+    """Find user's rarest unlocked achievements by global unlock percentage."""
+    candidates = []
+    for appid in appids:
+        player_data = get_player_achievements_fn(steam_id, appid)
+        if not player_data or "achievements" not in player_data:
+            continue
+        game_name = player_data.get("gameName", f"App {appid}")
+        unlocked = {a.get("apiname", a.get("name", "")) for a in player_data["achievements"] if a.get("achieved")}
+        if not unlocked:
+            continue
+        global_data = get_global_achievement_fn(appid)
+        if not global_data:
+            continue
+        for ach in global_data:
+            api_name = ach.get("name", "")
+            if api_name in unlocked:
+                candidates.append({
+                    "game": game_name,
+                    "achievement_name": api_name,
+                    "global_percent": round(ach.get("percent", 100), 2),
+                })
+    candidates.sort(key=lambda x: x["global_percent"])
+    return candidates[:n]
+
+
+# --- Head-to-Head Comparison ---
+
+def compare_stats(stats1: dict, stats2: dict, name1: str, name2: str) -> list[dict]:
+    """Compare two players' stats and determine winners for each metric."""
+    comparisons = [
+        ("Total Games", stats1["total_games"], stats2["total_games"], "more", "🎮"),
+        ("Games Played", stats1["played"], stats2["played"], "more", "✅"),
+        ("% Played", stats1["pct_played"], stats2["pct_played"], "higher", "📊"),
+        ("Total Hours", stats1["total_hours"], stats2["total_hours"], "more", "⏱️"),
+        ("Unplayed Games", stats1["unplayed"], stats2["unplayed"], "fewer", "🕸️"),
+    ]
+    results = []
+    for label, v1, v2, direction, icon in comparisons:
+        if direction == "fewer":
+            winner = name1 if v1 < v2 else (name2 if v2 < v1 else "Tie")
+        else:
+            winner = name1 if v1 > v2 else (name2 if v2 > v1 else "Tie")
+        results.append({
+            "metric": label, "icon": icon,
+            "p1_value": v1, "p2_value": v2,
+            "winner": winner, "direction": direction,
+        })
+    return results
+
+
+def shared_games(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """Find games both players own with hours from each."""
+    merged = df1[["appid", "name", "hours"]].merge(
+        df2[["appid", "hours"]], on="appid", suffixes=("_p1", "_p2"),
+    )
+    return merged.sort_values("hours_p1", ascending=False).reset_index(drop=True)
+
+
+def comparison_commentary(stats1: dict, stats2: dict, name1: str, name2: str) -> str:
+    """Generate funny comparison text between two players."""
+    lines = []
+
+    if stats1["total_games"] > stats2["total_games"] * 1.5:
+        lines.append(f"🐉 **{name1}** is the bigger hoarder with **{stats1['total_games']}** games vs {name2}'s measly {stats2['total_games']}. Someone call TLC.")
+    elif stats2["total_games"] > stats1["total_games"] * 1.5:
+        lines.append(f"🐉 **{name2}** is the bigger hoarder with **{stats2['total_games']}** games vs {name1}'s measly {stats1['total_games']}. Someone call TLC.")
+    else:
+        lines.append(f"📦 Both are equally unhinged collectors. **{name1}**: {stats1['total_games']} games, **{name2}**: {stats2['total_games']} games.")
+
+    if stats1["pct_played"] > stats2["pct_played"] + 15:
+        lines.append(f"🎮 **{name1}** actually plays their games ({stats1['pct_played']}% played). **{name2}** just collects ({stats2['pct_played']}%). One's a gamer, one's a museum curator.")
+    elif stats2["pct_played"] > stats1["pct_played"] + 15:
+        lines.append(f"🎮 **{name2}** actually plays their games ({stats2['pct_played']}% played). **{name1}** just collects ({stats1['pct_played']}%). One's a gamer, one's a museum curator.")
+    else:
+        lines.append(f"📊 Both play about the same percentage of their library. Equally guilty (or innocent).")
+
+    h1, h2 = stats1["total_hours"], stats2["total_hours"]
+    if h1 > h2 * 2:
+        lines.append(f"💀 **{name1}** has **{h1:,.0f}** hours vs {name2}'s {h2:,.0f}. That's not a comparison, that's a cry for help.")
+    elif h2 > h1 * 2:
+        lines.append(f"💀 **{name2}** has **{h2:,.0f}** hours vs {name1}'s {h1:,.0f}. That's not a comparison, that's a cry for help.")
+    else:
+        diff = abs(h1 - h2)
+        lines.append(f"⏱️ Only **{diff:,.0f}** hours apart. They're both equally committed to not going outside.")
+
+    b1, b2 = stats1["unplayed"], stats2["unplayed"]
+    if b1 > b2:
+        lines.append(f"💸 **{name1}** wins the Backlog of Shame™ with **{b1}** unplayed games vs {name2}'s {b2}. Gabe Newell sends his thanks.")
+    elif b2 > b1:
+        lines.append(f"💸 **{name2}** wins the Backlog of Shame™ with **{b2}** unplayed games vs {name1}'s {b1}. Gabe Newell sends his thanks.")
+
+    return "\n\n".join(lines)
+
+
+def estimate_account_value(store_details: dict[int, dict]) -> dict:
+    """Estimate total account value from store price data."""
+    total_value = 0.0
+    total_priced = 0
+    free_games = 0
+    most_expensive = ("", 0.0)
+    for appid, data in store_details.items():
+        price_data = data.get("price_overview")
+        if price_data:
+            price = price_data.get("final", 0) / 100
+            if price > 0:
+                total_value += price
+                total_priced += 1
+                if price > most_expensive[1]:
+                    most_expensive = (data.get("name", "Unknown"), price)
+            else:
+                free_games += 1
+        elif data.get("is_free"):
+            free_games += 1
+    return {
+        "total_value": round(total_value, 2),
+        "total_games_priced": total_priced,
+        "free_games": free_games,
+        "most_expensive": most_expensive,
+        "avg_price": round(total_value / total_priced, 2) if total_priced else 0.0,
+    }
+
+
+def perfect_games(ach_stats: list[dict]) -> list[dict]:
+    """Filter achievement stats to games with 100% completion."""
+    return [
+        {"name": a["name"], "total": a["total"], "appid": a["appid"]}
+        for a in ach_stats
+        if a.get("pct") == 100.0 and a.get("total", 0) > 0
+    ]
+
+
+def genre_personality_tags(genre_df: pd.DataFrame, n: int = 5) -> list[str]:
+    """Map top N genres to fun personality labels."""
+    if genre_df.empty:
+        return []
+    genre_map = {
+        "Action": "Adrenaline Junkie",
+        "RPG": "RPG Addict",
+        "Strategy": "Armchair General",
+        "Simulation": "Virtual Life Enthusiast",
+        "Adventure": "Digital Explorer",
+        "Indie": "Indie Connoisseur",
+        "Casual": "Casual King",
+        "Sports": "Virtual Athlete",
+        "Racing": "Speed Demon",
+        "Puzzle": "Brain Teaser",
+        "Horror": "Thrill Seeker",
+        "FPS": "FPS Sweat",
+        "Shooter": "FPS Sweat",
+        "Multiplayer": "Social Gamer",
+        "Free to Play": "F2P Warrior",
+    }
+    top_genres = genre_df["genre"].value_counts().head(n).index.tolist()
+    return [genre_map.get(g, f"{g} Fan") for g in top_genres]
+
+
+def comparison_personality(p1_title: str, p2_title: str, name1: str, name2: str) -> str:
+    """Commentary on the personality matchup."""
+    if p1_title == p2_title:
+        return f"🤝 **Same energy!** Both {name1} and {name2} are **{p1_title}**. Either soulmates or equally concerning."
+    combos = {
+        ("The Digital Hoarder", "The Completionist"): "One buys everything, the other actually plays everything. Together they'd be unstoppable.",
+        ("The Completionist", "The Digital Hoarder"): "One buys everything, the other actually plays everything. Together they'd be unstoppable.",
+        ("The One-Game Andy", "The Dabbler"): "One commits too hard, the other can't commit at all. Classic.",
+        ("The Dabbler", "The One-Game Andy"): "One commits too hard, the other can't commit at all. Classic.",
+        ("The No-Lifer", "The Minimalist"): "The no-lifer and the minimalist walk into a bar. Only one leaves... because the other is still gaming.",
+        ("The Minimalist", "The No-Lifer"): "The no-lifer and the minimalist walk into a bar. Only one leaves... because the other is still gaming.",
+    }
+    specific = combos.get((p1_title, p2_title))
+    if specific:
+        return f"⚡ **{name1}** ({p1_title}) vs **{name2}** ({p2_title}): {specific}"
+    return f"⚡ **{name1}** is **{p1_title}** while **{name2}** is **{p2_title}**. Different vibes, same addiction."
+
+
+# --- Feature 5: Random Game Picker ---
+
+import random
+
+
+def random_game_reasons() -> list[str]:
+    """Fun reason templates for picking a random game."""
+    return [
+        "You bought it, might as well try it. 🤷",
+        "It's been sitting in your library, lonely and neglected. Give it love. 💔",
+        "Your wallet died for this game. Honor its sacrifice. 💀",
+        "Steam sale impulse buy? Time to face the consequences. 🛒",
+        "This game has been gathering digital dust since purchase day. ☁️",
+        "You scrolled past it 400 times. Tonight, it scrolls back. 👁️",
+        "Gabe Newell personally requests you play this one. (Not really, but still.) 🧔",
+        "It's been in your library longer than some of your friendships. ⏳",
+        "Random number generator says this one. Who are you to argue with math? 🎲",
+        "Your backlog isn't going to clear itself. Start here. 📋",
+    ]
+
+
+def pick_random_game(df: pd.DataFrame, genre_df: pd.DataFrame = None, preferred_genres: list[str] = None) -> dict:
+    """Pick a random unplayed game, optionally weighted toward preferred genres.
+
+    Returns {name, appid, reason} or empty dict if no unplayed games.
+    """
+    unplayed = df[df["hours"] == 0].copy()
+    if unplayed.empty:
+        return {}
+
+    reasons = random_game_reasons()
+
+    # If genre info provided, try to weight toward preferred genres
+    if genre_df is not None and preferred_genres and not genre_df.empty:
+        genre_appids = set(genre_df[genre_df["genre"].isin(preferred_genres)]["appid"].unique())
+        matching = unplayed[unplayed["appid"].isin(genre_appids)]
+        if not matching.empty and random.random() < 0.6:
+            row = matching.sample(1).iloc[0]
+            matched_genre = [g for g in preferred_genres if row["appid"] in set(genre_df[genre_df["genre"] == g]["appid"])]
+            genre_name = matched_genre[0] if matched_genre else preferred_genres[0]
+            return {
+                "name": row["name"],
+                "appid": int(row["appid"]),
+                "reason": f"Matches your favorite genre: **{genre_name}**! 🎯",
+            }
+
+    row = unplayed.sample(1).iloc[0]
+    return {
+        "name": row["name"],
+        "appid": int(row["appid"]),
+        "reason": random.choice(reasons),
+    }
+
+
+# --- Feature 6: Streak Tracker & Game Timeline ---
+
+def calculate_streak(df: pd.DataFrame) -> dict:
+    """Calculate consecutive-day gaming streak from rtime_last_played.
+
+    Returns {current_streak, last_played_date, most_recent_game}.
+    """
+    if "rtime_last_played" not in df.columns:
+        return {"current_streak": 0, "last_played_date": "Unknown", "most_recent_game": "Unknown"}
+
+    played = df[df["rtime_last_played"] > 0].copy()
+    if played.empty:
+        return {"current_streak": 0, "last_played_date": "Unknown", "most_recent_game": "Unknown"}
+
+    played["last_played_dt"] = pd.to_datetime(played["rtime_last_played"], unit="s", utc=True)
+    played["last_played_day"] = played["last_played_dt"].dt.date
+    played = played.sort_values("rtime_last_played", ascending=False)
+
+    most_recent_game = played.iloc[0]["name"]
+    last_played_date = played.iloc[0]["last_played_dt"].strftime("%B %d, %Y")
+
+    # Get unique days played (sorted descending)
+    unique_days = sorted(played["last_played_day"].unique(), reverse=True)
+
+    today = datetime.now(timezone.utc).date()
+    # Streak must start from today or yesterday
+    if unique_days[0] < today - pd.Timedelta(days=1):
+        return {"current_streak": 0, "last_played_date": last_played_date, "most_recent_game": most_recent_game}
+
+    streak = 1
+    for i in range(1, len(unique_days)):
+        expected = unique_days[i - 1] - pd.Timedelta(days=1)
+        if unique_days[i] == expected:
+            streak += 1
+        else:
+            break
+
+    return {"current_streak": streak, "last_played_date": last_played_date, "most_recent_game": most_recent_game}
+
+
+def game_timeline(df: pd.DataFrame, n: int = 20) -> pd.DataFrame:
+    """Create a timeline of recently played games using rtime_last_played.
+
+    Returns DataFrame with [name, last_played_date, hours] sorted by most recent.
+    """
+    if "rtime_last_played" not in df.columns:
+        return pd.DataFrame(columns=["name", "last_played_date", "hours"])
+
+    played = df[df["rtime_last_played"] > 0].copy()
+    if played.empty:
+        return pd.DataFrame(columns=["name", "last_played_date", "hours"])
+
+    played["last_played_date"] = pd.to_datetime(played["rtime_last_played"], unit="s", utc=True).dt.strftime("%Y-%m-%d")
+    played = played.sort_values("rtime_last_played", ascending=False).head(n)
+    return played[["name", "last_played_date", "hours"]].reset_index(drop=True)

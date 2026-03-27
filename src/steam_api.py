@@ -115,6 +115,18 @@ def get_player_achievements(steam_id: str, appid: int) -> dict | None:
     return None
 
 
+@st.cache_data(ttl=3600)
+def get_global_achievement_percentages(appid: int) -> list[dict] | None:
+    """Fetch global achievement unlock percentages for a game."""
+    try:
+        r = requests.get(f"{BASE}/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/",
+                         params={"gameid": appid, "format": "json"}, timeout=10)
+        data = r.json().get("achievementpercentages", {}).get("achievements", [])
+        return data if data else None
+    except Exception:
+        return None
+
+
 def get_achievement_stats(steam_id: str, appids: list[int], max_games: int = 20, delay: float = 0.3) -> list[dict]:
     """Fetch achievement completion for top games. Returns list of {name, achieved, total, pct}."""
     results = []
