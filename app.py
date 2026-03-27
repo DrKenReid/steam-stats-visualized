@@ -650,14 +650,16 @@ if not show_comparison:
         {_plat_html}
     </div>'''
 
-    st.markdown(f'''
-<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:16px;padding:24px;max-width:500px;margin:0 auto;font-family:sans-serif;color:white;">
+    _card_html = f'''<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:16px;padding:24px;max-width:500px;margin:0 auto;font-family:sans-serif;color:white;">
     {_card_sections}
     <div style="text-align:center;color:#555;font-size:11px;border-top:1px solid #333;padding-top:8px;">
         steamstatsvisualized.streamlit.app
     </div>
-</div>
-''', unsafe_allow_html=True)
+</div>'''
+    try:
+        st.html(_card_html)
+    except AttributeError:
+        st.markdown(_card_html, unsafe_allow_html=True)
 
     st.caption("📱 Screenshot this card and share it!")
     share_buttons("Summary Card", f"🎮 Check out my Steam stats! {emoji} {title} — {stats['total_games']} games, {stats['total_hours']:,.0f} hours!", my_share_url)
