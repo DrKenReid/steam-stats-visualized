@@ -279,12 +279,15 @@ if not show_comparison:
         # Roast based on value
         pct_played = stats["pct_played"]
         wasted = acct_value["total_value"] * (1 - pct_played / 100)
+        _total_val = f"${acct_value['total_value']:,.2f}"
+        _wasted_val = f"${wasted:,.2f}"
         st.markdown(
-            f"**${acct_value['total_value']:,.2f}** worth of games and you've played **{pct_played}%** of them. "
-            f"That's **${wasted:,.2f}** of digital shelf ornaments. 🏺"
+            f"**{_total_val}** worth of games and you've played **{pct_played}%** of them. "
+            f"That's **{_wasted_val}** of digital shelf ornaments. 🏺"
         )
         if acct_value["most_expensive"][1] > 0:
-            st.markdown(f"Most expensive game: **{acct_value['most_expensive'][0]}** at **${acct_value['most_expensive'][1]:.2f}**.")
+            _exp_price = f"${acct_value['most_expensive'][1]:.2f}"
+            st.markdown(f"Most expensive game: **{acct_value['most_expensive'][0]}** at **{_exp_price}**.")
         st.caption("*Estimated based on current store prices for your top 100 games.*")
         share_buttons("Account Value", f"💰 My Steam library is worth ${acct_value['total_value']:,.2f}! Cost per hour: ${cpe:.2f}", my_share_url)
     else:
@@ -419,7 +422,8 @@ if not show_comparison:
             if not cph.empty:
                 best_name = cph.iloc[0]["name"]
                 best_val = cph.iloc[0]["cost_per_hour"]
-                st.markdown(f"Best bang for your buck: **{best_name}** at **${best_val:.2f}/hour**. Basically free entertainment.")
+                _best_cph = f"${best_val:.2f}"
+                st.markdown(f"Best bang for your buck: **{best_name}** at **{_best_cph}/hour**. Basically free entertainment.")
                 tab_best, tab_worst = st.tabs(["Best Value", "Worst Value"])
                 with tab_best:
                     st.plotly_chart(cost_per_hour_chart(cph, best=True), width="stretch", key="cost_best", config=PLOTLY_CONFIG)
@@ -438,11 +442,14 @@ if not show_comparison:
             st.divider()
             st.subheader("💸 Most Expensive Games You've Never Played")
             total_wasted = sum(price for _, price in expensive)
-            st.markdown(f"You've got **${total_wasted:.2f}** worth of games just sitting there collecting digital dust. "
+            _total_w = f"${total_wasted:.2f}"
+            st.markdown(f"You've got **{_total_w}** worth of games just sitting there collecting digital dust. "
                         f"That's not a library, that's a donation to Gabe Newell. 🎁")
             if len(expensive) >= 3:
-                st.markdown(f"Top offender: **{expensive[0][0]}** at **${expensive[0][1]:.2f}**. "
-                            f"Runner-up: **{expensive[1][0]}** (${expensive[1][1]:.2f}). "
+                _p1 = f"${expensive[0][1]:.2f}"
+                _p2 = f"${expensive[1][1]:.2f}"
+                st.markdown(f"Top offender: **{expensive[0][0]}** at **{_p1}**. "
+                            f"Runner-up: **{expensive[1][0]}** ({_p2}). "
                             f"The audacity. 💅")
             st.plotly_chart(expensive_unplayed_chart(expensive), width="stretch", key="expensive_unplayed", config=PLOTLY_CONFIG)
             download_chart(expensive_unplayed_chart(expensive), "most_expensive_unplayed.png", "expensive_unplayed", title=f"{persona_name}'s Most Expensive Unplayed Games", player_name=persona_name)
