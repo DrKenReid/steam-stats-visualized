@@ -628,10 +628,10 @@ if show_comparison:
 
     # --- Shared Games ---
     st.subheader("🤝 Shared Games")
-    shared_df = shared_games(df, df_2)
+    shared_df = shared_games(df_all, df_2)
     st.markdown(f"**{len(shared_df)}** games in common!")
-    unique_p1 = len(df[~df["appid"].isin(df_2["appid"])])
-    unique_p2 = len(df_2[~df_2["appid"].isin(df["appid"])])
+    unique_p1 = len(df_all[~df_all["appid"].isin(df_2["appid"])])
+    unique_p2 = len(df_2[~df_2["appid"].isin(df_all["appid"])])
     col_u1, col_u2 = st.columns(2)
     col_u1.metric(f"🎯 Only {persona_name}", unique_p1)
     col_u2.metric(f"🎯 Only {persona_name_2}", unique_p2)

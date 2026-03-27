@@ -139,16 +139,21 @@ def recent_games_chart(games: list[dict]) -> go.Figure:
 
 def shared_games_chart(shared_df: pd.DataFrame, name1: str, name2: str, n: int = 20) -> go.Figure:
     """Horizontal bar chart comparing hours for shared games."""
-    df = shared_df.head(n).sort_values("hours_p1", ascending=True)
+    # Sort by total hours so both players' contributions are visible
+    df = shared_df.copy().head(n)
+    df["total"] = df["hours_p1"].fillna(0) + df["hours_p2"].fillna(0)
+    df = df.sort_values("total", ascending=True)
     fig = go.Figure()
-    fig.add_trace(go.Bar(y=df["name"], x=df["hours_p1"], name=name1,
-                         orientation="h", marker_color="#1b9e77", text=df["hours_p1"],
-                         textposition="outside", texttemplate="%{text:.0f}h",
-                         hovertemplate="%{y}<br>" + name1 + ": %{x:.0f}h<extra></extra>"))
-    fig.add_trace(go.Bar(y=df["name"], x=df["hours_p2"], name=name2,
-                         orientation="h", marker_color="#d95f02", text=df["hours_p2"],
-                         textposition="outside", texttemplate="%{text:.0f}h",
-                         hovertemplate="%{y}<br>" + name2 + ": %{x:.0f}h<extra></extra>"))
+    fig.add_trace(go.Bar(
+        y=df["name"], x=df["hours_p1"].fillna(0), name=name1,
+        orientation="h", marker_color="#1b9e77",
+        hovertemplate="%{y}<br>" + name1 + ": %{x:.0f}h<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        y=df["name"], x=df["hours_p2"].fillna(0), name=name2,
+        orientation="h", marker_color="#d95f02",
+        hovertemplate="%{y}<br>" + name2 + ": %{x:.0f}h<extra></extra>",
+    ))
     fig.update_layout(barmode="group", template=DARK_TEMPLATE,
                       xaxis_title="Hours", yaxis_title="",
                       height=max(400, len(df) * 35), margin=dict(l=0, r=60, t=10, b=30),
