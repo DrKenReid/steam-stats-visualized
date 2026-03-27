@@ -78,6 +78,10 @@ user_input_2 = ""
 if compare_mode:
     user_input_2 = st.text_input("Player 2 Steam Profile", value=default_vs,
                                  placeholder="e.g. vanity name, Steam ID, or profile URL")
+else:
+    # Clean up comparison query params when toggling off
+    if "vs" in st.query_params:
+        del st.query_params["vs"]
 
 if not user_input:
     st.info("👆 Enter a Steam profile to get started.")
