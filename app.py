@@ -48,11 +48,19 @@ def share_buttons(section_title: str, share_text: str):
 st.title("🎮 Steam Stats Visualized")
 st.caption("Paste your Steam profile URL, vanity name, or Steam ID below and prepare to be roasted.")
 
-user_input = st.text_input("Steam Profile", placeholder="e.g. Drkenreid, 76561197996360778, or https://steamcommunity.com/id/Drkenreid")
+# Support URL query params for shareable links
+query_params = st.query_params
+default_input = query_params.get("id", "")
+
+user_input = st.text_input("Steam Profile", value=default_input,
+                           placeholder="e.g. Drkenreid, 76561197996360778, or https://steamcommunity.com/id/Drkenreid")
 
 if not user_input:
     st.info("👆 Enter a Steam profile to get started.")
     st.stop()
+
+# Set query param so the URL is shareable
+st.query_params["id"] = user_input
 
 # --- Resolve & fetch ---
 try:
