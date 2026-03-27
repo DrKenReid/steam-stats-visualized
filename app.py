@@ -339,7 +339,8 @@ if not show_comparison:
                 )
                 st.markdown(f'<div style="margin:8px 0 12px 0;">{pills_html}</div>', unsafe_allow_html=True)
                 share_buttons("Genre Tags", f"My gaming DNA: {' • '.join(tags)}", my_share_url)
-            share_buttons("Genre", f"🎯 My most played Steam genre (last 2 weeks) is {top_genre}!", my_share_url)
+            else:
+                share_buttons("Genre", f"🎯 My most played Steam genre (last 2 weeks) is {top_genre}!", my_share_url)
         else:
             st.info("No genre data available.")
     else:
@@ -361,7 +362,8 @@ if not show_comparison:
                     )
                     st.markdown(f'<div style="margin:8px 0 12px 0;">{pills_html}</div>', unsafe_allow_html=True)
                     share_buttons("Genre Tags", f"My gaming DNA: {' • '.join(tags)}", my_share_url)
-                share_buttons("Genre", f"🎯 My most played Steam genre is {top_genre}!", my_share_url)
+                else:
+                    share_buttons("Genre", f"🎯 My most played Steam genre is {top_genre}!", my_share_url)
             else:
                 st.info("No genre data available.")
 
@@ -460,9 +462,17 @@ if not show_comparison:
         ach_appids_for_detail = [a["appid"] for a in ach_stats]
         recent_achs = recent_achievements(steam_id, ach_appids_for_detail, get_player_achievements, n=10, get_game_schema_fn=get_game_schema)
         if recent_achs:
-            recent_ach_df = pd.DataFrame(recent_achs)[["game", "achievement_name", "unlock_date"]]
-            recent_ach_df.columns = ["Game", "Achievement", "Unlocked"]
-            st.dataframe(recent_ach_df, use_container_width=True, hide_index=True)
+            for ach in recent_achs[:10]:
+                st.markdown(
+                    f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">'
+                    f'<span style="font-size:28px;">🏅</span>'
+                    f'<div>'
+                    f'<div style="font-weight:bold;font-size:15px;">{ach["achievement_name"]}</div>'
+                    f'<div style="color:#aaa;font-size:13px;">{ach["game"]}</div>'
+                    f'<div style="color:#888;font-size:12px;">🕐 {ach["unlock_date"]}</div>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
         else:
             st.info("No recent achievement data available.")
 
@@ -470,9 +480,27 @@ if not show_comparison:
         st.markdown("#### 💎 Rarest Achievements")
         rare_achs = rarest_achievements(steam_id, ach_appids_for_detail, get_player_achievements, get_global_achievement_percentages, n=10, get_game_schema_fn=get_game_schema)
         if rare_achs:
-            rare_df = pd.DataFrame(rare_achs)[["achievement_name", "game", "global_percent"]]
-            rare_df.columns = ["Achievement", "Game", "Global Unlock %"]
-            st.dataframe(rare_df, use_container_width=True, hide_index=True)
+            for ach in rare_achs[:10]:
+                pct = ach["global_percent"]
+                if pct < 1:
+                    icon, color = "💎", "#FFD700"
+                elif pct < 5:
+                    icon, color = "🔮", "#9B59B6"
+                elif pct < 10:
+                    icon, color = "🏆", "#3498DB"
+                else:
+                    icon, color = "🏅", "#888"
+                st.markdown(
+                    f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">'
+                    f'<span style="font-size:28px;">{icon}</span>'
+                    f'<div style="flex:1;">'
+                    f'<div style="font-weight:bold;font-size:15px;">{ach["achievement_name"]}</div>'
+                    f'<div style="color:#aaa;font-size:13px;">{ach["game"]}</div>'
+                    f'</div>'
+                    f'<div style="color:{color};font-weight:bold;font-size:16px;">{pct}%<div style="font-size:11px;color:#888;font-weight:normal;">of players</div></div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
             if rare_achs[0]["global_percent"] < 5:
                 st.markdown(f"🔥 **{rare_achs[0]['achievement_name']}** in {rare_achs[0]['game']} — only **{rare_achs[0]['global_percent']}%** of players have this. You're built different.")
             rarest_text = f"💎 My rarest Steam achievement: {rare_achs[0]['achievement_name']} ({rare_achs[0]['game']}) — only {rare_achs[0]['global_percent']}% of players have it!"
@@ -523,47 +551,104 @@ if not show_comparison:
     st.divider()
     st.subheader("📸 Your Steam Summary Card")
 
-    # Gather data for the card
-    _card_top3 = top_games(df, 3)
-    _card_top3_html = ""
-    for _, _row in _card_top3.iterrows():
-        _card_top3_html += f'<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>{_row["name"]}</span><span style="color:#1b9e77;">{_row["hours"]:,.0f}h</span></div>'
+    # Let users choose which sections to include
+    card_options = st.multiselect(
+        "Customize your card:",
+        ["Gaming Personality", "Key Stats", "Top 3 Games", "Genre Tags", "Account Value", "Achievement Stats", "Platform Breakdown"],
+        default=["Gaming Personality", "Key Stats", "Top 3 Games", "Genre Tags"],
+    )
 
-    _card_genres = ""
-    try:
-        if not genre_df.empty:
-            _top_genres = genre_df["genre"].value_counts().head(3).index.tolist()
-            _card_genres = " ".join(f'<span style="background:#1b9e77;color:white;padding:2px 8px;border-radius:12px;font-size:12px;margin-right:4px;">{g}</span>' for g in _top_genres)
-    except Exception:
-        pass
-
+    # Build card sections dynamically
     _avatar_url = profile.get("avatarfull", "")
     _persona = persona_name
-    _personality_title = title
-    _personality_emoji = emoji
+    _card_sections = ""
 
-    st.markdown(f'''
-<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:16px;padding:24px;max-width:500px;margin:0 auto;font-family:sans-serif;color:white;">
+    if "Gaming Personality" in card_options:
+        _card_sections += f'''
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <img src="{_avatar_url}" style="width:56px;height:56px;border-radius:50%;border:2px solid #1b9e77;" />
         <div>
             <div style="font-size:20px;font-weight:bold;">{_persona}</div>
-            <div style="color:#aaa;font-size:14px;">{_personality_emoji} {_personality_title}</div>
+            <div style="color:#aaa;font-size:14px;">{emoji} {title}</div>
         </div>
-    </div>
+    </div>'''
+    else:
+        _card_sections += f'''
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <img src="{_avatar_url}" style="width:56px;height:56px;border-radius:50%;border:2px solid #1b9e77;" />
+        <div style="font-size:20px;font-weight:bold;">{_persona}</div>
+    </div>'''
+
+    if "Key Stats" in card_options:
+        _card_sections += f'''
     <div style="display:flex;justify-content:space-between;text-align:center;background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:16px;">
         <div><div style="font-size:18px;font-weight:bold;">{stats["total_games"]:,}</div><div style="font-size:11px;color:#888;">Games</div></div>
         <div><div style="font-size:18px;font-weight:bold;">{stats["total_hours"]:,.0f}</div><div style="font-size:11px;color:#888;">Hours</div></div>
         <div><div style="font-size:18px;font-weight:bold;">{stats["pct_played"]}%</div><div style="font-size:11px;color:#888;">Played</div></div>
         <div><div style="font-size:18px;font-weight:bold;">{account_years}y</div><div style="font-size:11px;color:#888;">Account Age</div></div>
-    </div>
+    </div>'''
+
+    if "Top 3 Games" in card_options:
+        _card_top3 = top_games(df, 3)
+        _card_top3_html = ""
+        for _, _row in _card_top3.iterrows():
+            _card_top3_html += f'<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>{_row["name"]}</span><span style="color:#1b9e77;">{_row["hours"]:,.0f}h</span></div>'
+        _card_sections += f'''
     <div style="margin-bottom:12px;">
         <div style="font-size:12px;color:#888;margin-bottom:4px;">🏆 TOP GAMES</div>
         {_card_top3_html}
-    </div>
-    <div style="margin-bottom:16px;">
-        {_card_genres}
-    </div>
+    </div>'''
+
+    if "Genre Tags" in card_options:
+        try:
+            if not genre_df.empty:
+                _top_genres = genre_df["genre"].value_counts().head(3).index.tolist()
+                _card_genres = " ".join(f'<span style="background:#1b9e77;color:white;padding:2px 8px;border-radius:12px;font-size:12px;margin-right:4px;">{g}</span>' for g in _top_genres)
+                _card_sections += f'<div style="margin-bottom:16px;">{_card_genres}</div>'
+        except Exception:
+            pass
+
+    if "Account Value" in card_options:
+        try:
+            if acct_value["total_games_priced"] > 0:
+                _card_sections += f'''
+    <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:12px;text-align:center;">
+        <div style="font-size:12px;color:#888;">💰 ACCOUNT VALUE</div>
+        <div style="font-size:22px;font-weight:bold;color:#1b9e77;">${acct_value["total_value"]:,.2f}</div>
+    </div>'''
+        except Exception:
+            pass
+
+    if "Achievement Stats" in card_options:
+        try:
+            if ach_stats:
+                _total_ach = sum(a["achieved"] for a in ach_stats)
+                _total_poss = sum(a["total"] for a in ach_stats)
+                _ach_pct = round(100 * _total_ach / _total_poss, 1) if _total_poss else 0
+                _card_sections += f'''
+    <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:12px;display:flex;justify-content:space-around;text-align:center;">
+        <div><div style="font-size:16px;font-weight:bold;">{_total_ach:,}</div><div style="font-size:11px;color:#888;">🏅 Unlocked</div></div>
+        <div><div style="font-size:16px;font-weight:bold;">{_ach_pct}%</div><div style="font-size:11px;color:#888;">Completion</div></div>
+    </div>'''
+        except Exception:
+            pass
+
+    if "Platform Breakdown" in card_options:
+        if platforms:
+            _plat_items = " · ".join(f'{{"Windows":"🪟","Mac":"🍎","Linux":"🐧","Steam Deck":"🎮"}}.get(p,"💻")' for p in platforms)
+            _plat_html = ""
+            for p, h in sorted(platforms.items(), key=lambda x: -x[1]):
+                icon = {"Windows": "🪟", "Mac": "🍎", "Linux": "🐧", "Steam Deck": "🎮"}.get(p, "💻")
+                _plat_html += f'<span style="margin-right:12px;">{icon} {p} {h:,.0f}h</span>'
+            _card_sections += f'''
+    <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:12px;text-align:center;font-size:13px;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">💻 PLATFORMS</div>
+        {_plat_html}
+    </div>'''
+
+    st.markdown(f'''
+<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:16px;padding:24px;max-width:500px;margin:0 auto;font-family:sans-serif;color:white;">
+    {_card_sections}
     <div style="text-align:center;color:#555;font-size:11px;border-top:1px solid #333;padding-top:8px;">
         steamstatsvisualized.streamlit.app
     </div>
