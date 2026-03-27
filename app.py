@@ -740,7 +740,19 @@ if not show_comparison:
         top3=_card_top3_data, genre_tags=_card_genre_tags,
         avatar_url=profile.get("avatarfull", ""),
     )
-    download_chart(_summary_fig, "steam_summary_card.png", "summary_card", player_name=persona_name)
+    # Explicit download for summary card — don't silently fail
+    try:
+        _card_bytes = _summary_fig.to_image(format="png", width=500, height=600, scale=2)
+        _card_fname = f"steam_summary_{persona_name.replace(' ', '_')[:20]}.png"
+        st.download_button(
+            label="⬇️ Download Summary Card",
+            data=_card_bytes,
+            file_name=_card_fname,
+            mime="image/png",
+            key="dl_summary_card",
+        )
+    except Exception as e:
+        st.caption(f"📷 To save this card, take a screenshot. (Image export unavailable: {e})")
 
     share_buttons("Summary Card", f"🎮 Check out my Steam stats! {emoji} {title} — {stats['total_games']} games, {stats['total_hours']:,.0f} hours!", my_share_url)
 
