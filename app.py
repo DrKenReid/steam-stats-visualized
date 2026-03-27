@@ -569,7 +569,7 @@ if compare_mode and user_input_2:
     share_buttons("Comparison", f"⚔️ {persona_name} vs {persona_name_2} — Steam Stats Head-to-Head!", my_share_url)
 
 # ─── Gaming Streak (Feature 6) ───────────────────────────────────────
-from src.analytics import calculate_streak, game_timeline, pick_random_game
+from src.analytics import calculate_streak, game_timeline
 from src.charts import game_timeline_chart
 
 st.divider()
@@ -594,31 +594,6 @@ if not timeline.empty:
     st.caption("Your recent gaming history at a glance")
 else:
     st.info("No timeline data available.")
-
-# ─── What Should I Play Tonight? (Feature 5) ────────────────────────
-if not is_2weeks:
-    st.divider()
-    st.subheader("🎲 What Should I Play Tonight?")
-    unplayed_for_random = unplayed_games(df_all)
-    if len(unplayed_for_random) > 0:
-        # Use genre_df if it exists from earlier
-        preferred = []
-        try:
-            if not genre_df.empty:
-                preferred = genre_df["genre"].value_counts().head(3).index.tolist()
-        except Exception:
-            pass
-
-        if st.button("🎲 Pick a Random Game!"):
-            pick = pick_random_game(df_all, genre_df=genre_df if 'genre_df' in dir() else None, preferred_genres=preferred)
-            if pick:
-                st.markdown(f"### 🎮 {pick['name']}")
-                st.markdown(f"*{pick['reason']}*")
-                st.markdown(f"[View on Steam Store →](https://store.steampowered.com/app/{pick['appid']})")
-            else:
-                st.markdown("You've played everything. Go outside. 🌿")
-    else:
-        st.markdown("You've played everything. Go outside. 🌿")
 
 # ─── Shareable Summary Card (Feature 4) ─────────────────────────────
 st.divider()
