@@ -257,7 +257,7 @@ if not show_comparison:
         top_name = top.iloc[0]["name"]
         top_hours = top.iloc[0]["hours"]
         st.markdown(top_game_roast(top_name, top_hours))
-        st.plotly_chart(top_games_chart(top), use_container_width=True, key="top_games")
+        st.plotly_chart(top_games_chart(top), width="stretch", key="top_games")
         share_buttons("Top 10", f"🏆 My most played Steam game is {top_name} with {top_hours:,.0f} hours!", my_share_url)
 
     # ─── Platform Breakdown ─────────────────────────────────────────
@@ -266,7 +266,7 @@ if not show_comparison:
     if platforms:
         col_plat_chart, col_plat_info = st.columns([2, 3])
         with col_plat_chart:
-            st.plotly_chart(platform_pie_chart(platforms), use_container_width=True, key="platform_pie")
+            st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="platform_pie")
         with col_plat_info:
             for platform, hours in sorted(platforms.items(), key=lambda x: -x[1]):
                 pct = round(100 * hours / sum(platforms.values()), 1)
@@ -303,7 +303,7 @@ if not show_comparison:
     st.divider()
     st.subheader("📊 Playtime Distribution")
     st.caption("Spoiler: most of your games have barely been touched.")
-    st.plotly_chart(playtime_histogram(df), use_container_width=True, key="playtime_hist")
+    st.plotly_chart(playtime_histogram(df), width="stretch", key="playtime_hist")
     share_buttons("Distribution", f"📊 My Steam playtime distribution is... concerning.", my_share_url)
 
     # ─── Genre Breakdown & Cost Per Hour ────────────────────────────
@@ -330,7 +330,7 @@ if not show_comparison:
             top_genre = genre_df["genre"].value_counts().index[0]
             st.markdown(genre_commentary(top_genre))
             top_genre_map = top_games_per_genre(genre_df)
-            st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), use_container_width=True, key="genre_treemap")
+            st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap")
             tags = genre_personality_tags(genre_df)
             if tags:
                 pills_html = " ".join(
@@ -353,7 +353,7 @@ if not show_comparison:
                 top_genre = genre_df["genre"].value_counts().index[0]
                 st.markdown(genre_commentary(top_genre))
                 top_genre_map = top_games_per_genre(genre_df)
-                st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), use_container_width=True, key="genre_treemap")
+                st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap")
                 tags = genre_personality_tags(genre_df)
                 if tags:
                     pills_html = " ".join(
@@ -376,9 +376,9 @@ if not show_comparison:
                 st.markdown(f"Best bang for your buck: **{best_name}** at **${best_val:.2f}/hour**. Basically free entertainment.")
                 tab_best, tab_worst = st.tabs(["Best Value", "Worst Value"])
                 with tab_best:
-                    st.plotly_chart(cost_per_hour_chart(cph, best=True), use_container_width=True, key="cost_best")
+                    st.plotly_chart(cost_per_hour_chart(cph, best=True), width="stretch", key="cost_best")
                 with tab_worst:
-                    st.plotly_chart(cost_per_hour_chart(cph, best=False), use_container_width=True, key="cost_worst")
+                    st.plotly_chart(cost_per_hour_chart(cph, best=False), width="stretch", key="cost_worst")
                 share_buttons("Cost", f"💰 Best value Steam game: {best_name} at ${best_val:.2f}/hour!", my_share_url)
             else:
                 st.info("No price data available.")
@@ -396,7 +396,7 @@ if not show_comparison:
                 st.markdown(f"Top offender: **{expensive[0][0]}** at **${expensive[0][1]:.2f}**. "
                             f"Runner-up: **{expensive[1][0]}** (${expensive[1][1]:.2f}). "
                             f"The audacity. 💅")
-            st.plotly_chart(expensive_unplayed_chart(expensive), use_container_width=True, key="expensive_unplayed")
+            st.plotly_chart(expensive_unplayed_chart(expensive), width="stretch", key="expensive_unplayed")
             share_buttons("Expensive", f"💸 I have ${total_wasted:.2f} worth of unplayed Steam games. I'm basically a charity.", my_share_url)
 
     # ─── Achievement Stats ──────────────────────────────────────────
@@ -462,17 +462,19 @@ if not show_comparison:
         ach_appids_for_detail = [a["appid"] for a in ach_stats]
         recent_achs = recent_achievements(steam_id, ach_appids_for_detail, get_player_achievements, n=10, get_game_schema_fn=get_game_schema)
         if recent_achs:
-            for ach in recent_achs[:10]:
-                st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">'
-                    f'<span style="font-size:28px;">🏅</span>'
-                    f'<div>'
-                    f'<div style="font-weight:bold;font-size:15px;">{ach["achievement_name"]}</div>'
-                    f'<div style="color:#aaa;font-size:13px;">{ach["game"]}</div>'
-                    f'<div style="color:#888;font-size:12px;">🕐 {ach["unlock_date"]}</div>'
-                    f'</div></div>',
-                    unsafe_allow_html=True,
-                )
+            cols_recent = st.columns(2)
+            for i, ach in enumerate(recent_achs[:10]):
+                with cols_recent[i % 2]:
+                    st.markdown(
+                        f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">'
+                        f'<span style="font-size:28px;">🏅</span>'
+                        f'<div>'
+                        f'<div style="font-weight:bold;font-size:15px;">{ach["achievement_name"]}</div>'
+                        f'<div style="color:#aaa;font-size:13px;">{ach["game"]}</div>'
+                        f'<div style="color:#888;font-size:12px;">🕐 {ach["unlock_date"]}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
         else:
             st.info("No recent achievement data available.")
 
@@ -480,7 +482,8 @@ if not show_comparison:
         st.markdown("#### 💎 Rarest Achievements")
         rare_achs = rarest_achievements(steam_id, ach_appids_for_detail, get_player_achievements, get_global_achievement_percentages, n=10, get_game_schema_fn=get_game_schema)
         if rare_achs:
-            for ach in rare_achs[:10]:
+            cols_rare = st.columns(2)
+            for i, ach in enumerate(rare_achs[:10]):
                 pct = ach["global_percent"]
                 if pct < 1:
                     icon, color = "💎", "#FFD700"
@@ -490,17 +493,18 @@ if not show_comparison:
                     icon, color = "🏆", "#3498DB"
                 else:
                     icon, color = "🏅", "#888"
-                st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">'
-                    f'<span style="font-size:28px;">{icon}</span>'
-                    f'<div style="flex:1;">'
-                    f'<div style="font-weight:bold;font-size:15px;">{ach["achievement_name"]}</div>'
-                    f'<div style="color:#aaa;font-size:13px;">{ach["game"]}</div>'
-                    f'</div>'
-                    f'<div style="color:{color};font-weight:bold;font-size:16px;">{pct}%<div style="font-size:11px;color:#888;font-weight:normal;">of players</div></div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
+                with cols_rare[i % 2]:
+                    st.markdown(
+                        f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">'
+                        f'<span style="font-size:28px;">{icon}</span>'
+                        f'<div style="flex:1;">'
+                        f'<div style="font-weight:bold;font-size:15px;">{ach["achievement_name"]}</div>'
+                        f'<div style="color:#aaa;font-size:13px;">{ach["game"]}</div>'
+                        f'</div>'
+                        f'<div style="color:{color};font-weight:bold;font-size:16px;">{pct}%<div style="font-size:11px;color:#888;font-weight:normal;">of players</div></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
             if rare_achs[0]["global_percent"] < 5:
                 st.markdown(f"🔥 **{rare_achs[0]['achievement_name']}** in {rare_achs[0]['game']} — only **{rare_achs[0]['global_percent']}%** of players have this. You're built different.")
             rarest_text = f"💎 My rarest Steam achievement: {rare_achs[0]['achievement_name']} ({rare_achs[0]['game']}) — only {rare_achs[0]['global_percent']}% of players have it!"
@@ -514,7 +518,7 @@ if not show_comparison:
     st.divider()
     st.subheader("🕹️ Recently Played (Last 2 Weeks)")
     if recent:
-        st.plotly_chart(recent_games_chart(recent), use_container_width=True, key="recent_games")
+        st.plotly_chart(recent_games_chart(recent), width="stretch", key="recent_games")
         recent_names = ", ".join(g["name"] for g in recent[:3])
         share_buttons("Recent", f"🕹️ Recently playing: {recent_names}", my_share_url)
     else:
@@ -542,7 +546,7 @@ if not show_comparison:
     st.subheader("📅 Game Timeline")
     timeline = game_timeline(df_all, n=20)
     if not timeline.empty:
-        st.plotly_chart(game_timeline_chart(timeline), use_container_width=True, key="timeline")
+        st.plotly_chart(game_timeline_chart(timeline), width="stretch", key="timeline")
         st.caption("Your recent gaming history at a glance")
     else:
         st.info("No timeline data available.")
@@ -656,7 +660,7 @@ if not show_comparison:
 ''', unsafe_allow_html=True)
 
     st.caption("📱 Screenshot this card and share it!")
-    share_buttons("Summary Card", f"🎮 Check out my Steam stats! {_personality_emoji} {_personality_title} — {stats['total_games']} games, {stats['total_hours']:,.0f} hours!", my_share_url)
+    share_buttons("Summary Card", f"🎮 Check out my Steam stats! {emoji} {title} — {stats['total_games']} games, {stats['total_hours']:,.0f} hours!", my_share_url)
 
 # ─── Head-to-Head Comparison ─────────────────────────────────────────
 if show_comparison:
@@ -712,7 +716,7 @@ if show_comparison:
             f"{persona_name} **{item['p1_value']:,}** vs {persona_name_2} **{item['p2_value']:,}** "
             f"→ {winner_icon} {winner_text}"
         )
-    st.plotly_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), use_container_width=True, key="stats_compare")
+    st.plotly_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), width="stretch", key="stats_compare")
     share_buttons("Stats Showdown", f"⚔️ Steam Stats Showdown: {persona_name} vs {persona_name_2}!", my_share_url)
 
     # --- Shared Games ---
@@ -725,11 +729,11 @@ if show_comparison:
     col_u1.metric(f"🎯 Only {persona_name}", unique_p1)
     col_u2.metric(f"🎯 Only {persona_name_2}", unique_p2)
     if not shared_df.empty:
-        st.plotly_chart(shared_games_chart(shared_df, persona_name, persona_name_2), use_container_width=True, key="shared_games")
+        st.plotly_chart(shared_games_chart(shared_df, persona_name, persona_name_2), width="stretch", key="shared_games")
 
     # --- Top Games Comparison ---
     st.subheader("🏆 Top Games Comparison")
-    st.plotly_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), use_container_width=True, key="top_compare")
+    st.plotly_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), width="stretch", key="top_compare")
 
     # --- Platform Breakdown Side by Side ---
     platforms_2 = platform_breakdown(df_2)
@@ -739,13 +743,13 @@ if show_comparison:
         with col_plat1:
             st.markdown(f"**{persona_name}**")
             if platforms:
-                st.plotly_chart(platform_pie_chart(platforms), use_container_width=True, key="p1_platform_pie")
+                st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="p1_platform_pie")
             else:
                 st.info("No platform data")
         with col_plat2:
             st.markdown(f"**{persona_name_2}**")
             if platforms_2:
-                st.plotly_chart(platform_pie_chart(platforms_2), use_container_width=True, key="p2_platform_pie")
+                st.plotly_chart(platform_pie_chart(platforms_2), width="stretch", key="p2_platform_pie")
             else:
                 st.info("No platform data")
 
