@@ -315,41 +315,41 @@ if is_2weeks:
 else:
     col_genre, col_cost = st.columns(2)
 
-with col_genre:
-    st.markdown("#### Genres")
-    genre_df = extract_genres(store_details)
-    if not genre_df.empty:
-        top_genre = genre_df["genre"].value_counts().index[0]
-        st.markdown(genre_commentary(top_genre))
-        top_genre_map = top_games_per_genre(genre_df)
-        st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), use_container_width=True)
-        tags = genre_personality_tags(genre_df)
-        if tags:
-            pills_html = " ".join(
-                f'<span style="background:#1b9e77;color:white;padding:4px 12px;border-radius:16px;margin:2px;display:inline-block;font-size:14px;">{t}</span>'
-                for t in tags
-            )
-            st.markdown(f'<div style="margin:8px 0 12px 0;">{pills_html}</div>', unsafe_allow_html=True)
-            share_buttons("Genre Tags", f"My gaming DNA: {' • '.join(tags)}", my_share_url)
-        share_buttons("Genre", f"🎯 My most played Steam genre is {top_genre}!", my_share_url)
-    else:
-        st.info("No genre data available.")
+    with col_genre:
+        st.markdown("#### Genres")
+        genre_df = extract_genres(store_details)
+        if not genre_df.empty:
+            top_genre = genre_df["genre"].value_counts().index[0]
+            st.markdown(genre_commentary(top_genre))
+            top_genre_map = top_games_per_genre(genre_df)
+            st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), use_container_width=True)
+            tags = genre_personality_tags(genre_df)
+            if tags:
+                pills_html = " ".join(
+                    f'<span style="background:#1b9e77;color:white;padding:4px 12px;border-radius:16px;margin:2px;display:inline-block;font-size:14px;">{t}</span>'
+                    for t in tags
+                )
+                st.markdown(f'<div style="margin:8px 0 12px 0;">{pills_html}</div>', unsafe_allow_html=True)
+                share_buttons("Genre Tags", f"My gaming DNA: {' • '.join(tags)}", my_share_url)
+            share_buttons("Genre", f"🎯 My most played Steam genre is {top_genre}!", my_share_url)
+        else:
+            st.info("No genre data available.")
 
-with col_cost:
-    st.markdown("#### 💰 Cost Per Hour")
-    cph = cost_per_hour(store_details, df)
-    if not cph.empty:
-        best_name = cph.iloc[0]["name"]
-        best_val = cph.iloc[0]["cost_per_hour"]
-        st.markdown(f"Best bang for your buck: **{best_name}** at **${best_val:.2f}/hour**. Basically free entertainment.")
-        tab_best, tab_worst = st.tabs(["Best Value", "Worst Value"])
-        with tab_best:
-            st.plotly_chart(cost_per_hour_chart(cph, best=True), use_container_width=True)
-        with tab_worst:
-            st.plotly_chart(cost_per_hour_chart(cph, best=False), use_container_width=True)
-        share_buttons("Cost", f"💰 Best value Steam game: {best_name} at ${best_val:.2f}/hour!", my_share_url)
-    else:
-        st.info("No price data available.")
+    with col_cost:
+        st.markdown("#### 💰 Cost Per Hour")
+        cph = cost_per_hour(store_details, df)
+        if not cph.empty:
+            best_name = cph.iloc[0]["name"]
+            best_val = cph.iloc[0]["cost_per_hour"]
+            st.markdown(f"Best bang for your buck: **{best_name}** at **${best_val:.2f}/hour**. Basically free entertainment.")
+            tab_best, tab_worst = st.tabs(["Best Value", "Worst Value"])
+            with tab_best:
+                st.plotly_chart(cost_per_hour_chart(cph, best=True), use_container_width=True)
+            with tab_worst:
+                st.plotly_chart(cost_per_hour_chart(cph, best=False), use_container_width=True)
+            share_buttons("Cost", f"💰 Best value Steam game: {best_name} at ${best_val:.2f}/hour!", my_share_url)
+        else:
+            st.info("No price data available.")
 
 # ─── Most Expensive Unplayed ────────────────────────────────────────
 if not is_2weeks:
