@@ -705,27 +705,8 @@ if not show_comparison:
         import io
         import requests as req_lib
 
-        W, H = 500, 600
-        img = Image.new("RGB", (W, H), color=(26, 26, 46))
-        draw = ImageDraw.Draw(img)
-
-        # Gradient background (approximate)
-        for y in range(H):
-            r = int(26 + (22 - 26) * y / H)
-            g = int(26 + (33 - 26) * y / H)
-            b = int(46 + (62 - 46) * y / H)
-            draw.line([(0, y), (W, y)], fill=(r, g, b))
-
-        # Try to load avatar
-        try:
-            avatar_resp = req_lib.get(profile.get("avatarfull", ""), timeout=5)
-            avatar_img = Image.open(io.BytesIO(avatar_resp.content)).resize((56, 56))
-            # Make circular mask
-            mask = Image.new("L", (56, 56), 0)
-            ImageDraw.Draw(mask).ellipse((0, 0, 55, 55), fill=255)
-            img.paste(avatar_img, (24, 24), mask)
-        except Exception:
-            draw.ellipse((24, 24, 80, 80), fill=(27, 158, 119))
+        W = 500
+        PADDING = 24
 
         # Use default font (can't guarantee custom fonts on Streamlit Cloud)
         try:
@@ -739,13 +720,45 @@ if not show_comparison:
             font_sm = font_lg
             font_xs = font_lg
 
+        # Calculate height based on content
+        y_cursor = PADDING  # Start
+        y_cursor += 56 + 16  # Avatar + name block + gap
+        y_cursor += 60 + 16  # Stats row + gap
+        n_games = min(len(_card_top3_data), 3)
+        if n_games > 0:
+            y_cursor += 16 + n_games * 24 + 12  # "TOP GAMES" label + games + gap
+        if _card_genre_tags:
+            y_cursor += 22 + 16  # Genre tags + gap
+        y_cursor += 30  # Watermark area
+        H = y_cursor + PADDING
+
+        img = Image.new("RGB", (W, H), color=(26, 26, 46))
+        draw = ImageDraw.Draw(img)
+
+        # Gradient background
+        for y in range(H):
+            r = int(26 + (22 - 26) * y / H)
+            g = int(26 + (33 - 26) * y / H)
+            b = int(46 + (62 - 46) * y / H)
+            draw.line([(0, y), (W, y)], fill=(r, g, b))
+
+        # Avatar
+        try:
+            avatar_resp = req_lib.get(profile.get("avatarfull", ""), timeout=5)
+            avatar_img = Image.open(io.BytesIO(avatar_resp.content)).resize((56, 56))
+            mask = Image.new("L", (56, 56), 0)
+            ImageDraw.Draw(mask).ellipse((0, 0, 55, 55), fill=255)
+            img.paste(avatar_img, (PADDING, PADDING), mask)
+        except Exception:
+            draw.ellipse((PADDING, PADDING, PADDING + 56, PADDING + 56), fill=(27, 158, 119))
+
         # Player name & personality
-        draw.text((92, 30), persona_name, fill="white", font=font_lg)
-        draw.text((92, 55), f"{title}", fill=(170, 170, 170), font=font_md)
+        draw.text((PADDING + 68, PADDING + 6), persona_name, fill="white", font=font_lg)
+        draw.text((PADDING + 68, PADDING + 31), f"{title}", fill=(170, 170, 170), font=font_md)
 
         # Stats row
-        y_stats = 100
-        draw.rounded_rectangle([(20, y_stats), (W - 20, y_stats + 60)], radius=8, fill=(255, 255, 255, 13))
+        y_cur = PADDING + 56 + 16
+        draw.rounded_rectangle([(20, y_cur), (W - 20, y_cur + 60)], radius=8, fill=(40, 42, 54))
         stat_items = [
             (f"{stats['total_games']:,}", "Games"),
             (f"{stats['total_hours']:,.0f}", "Hours"),
@@ -755,35 +768,39 @@ if not show_comparison:
         col_w = (W - 40) // 4
         for i, (val, label) in enumerate(stat_items):
             x = 20 + col_w * i + col_w // 2
-            draw.text((x, y_stats + 10), val, fill="white", font=font_md, anchor="mt")
-            draw.text((x, y_stats + 32), label, fill=(136, 136, 136), font=font_xs, anchor="mt")
+            draw.text((x, y_cur + 10), val, fill="white", font=font_md, anchor="mt")
+            draw.text((x, y_cur + 32), label, fill=(136, 136, 136), font=font_xs, anchor="mt")
+        y_cur += 60 + 16
 
         # Top games
-        y_top = 180
-        draw.text((24, y_top), "TOP GAMES", fill=(136, 136, 136), font=font_xs)
-        for i, (name, hours) in enumerate(_card_top3_data[:3]):
-            _y = y_top + 20 + i * 24
-            name_trunc = name[:30] + "..." if len(name) > 30 else name
-            draw.text((24, _y), name_trunc, fill="white", font=font_sm)
-            hours_str = f"{hours:,.0f}h"
-            bbox = draw.textbbox((0, 0), hours_str, font=font_sm)
-            draw.text((W - 24 - (bbox[2] - bbox[0]), _y), hours_str, fill=(27, 158, 119), font=font_sm)
+        if n_games > 0:
+            draw.text((PADDING, y_cur), "TOP GAMES", fill=(136, 136, 136), font=font_xs)
+            y_cur += 16
+            for i, (name, hours) in enumerate(_card_top3_data[:3]):
+                name_trunc = name[:30] + "..." if len(name) > 30 else name
+                draw.text((PADDING, y_cur), name_trunc, fill="white", font=font_sm)
+                hours_str = f"{hours:,.0f}h"
+                bbox = draw.textbbox((0, 0), hours_str, font=font_sm)
+                draw.text((W - PADDING - (bbox[2] - bbox[0]), y_cur), hours_str, fill=(27, 158, 119), font=font_sm)
+                y_cur += 24
+            y_cur += 12
 
         # Genre tags
-        y_genres = y_top + 100
-        tag_x = 24
-        for tag in _card_genre_tags[:3]:
-            bbox = draw.textbbox((0, 0), tag, font=font_xs)
-            tw = bbox[2] - bbox[0]
-            draw.rounded_rectangle([(tag_x, y_genres), (tag_x + tw + 16, y_genres + 22)], radius=11, fill=(27, 158, 119))
-            draw.text((tag_x + 8, y_genres + 4), tag, fill="white", font=font_xs)
-            tag_x += tw + 24
+        if _card_genre_tags:
+            tag_x = PADDING
+            for tag in _card_genre_tags[:3]:
+                bbox = draw.textbbox((0, 0), tag, font=font_xs)
+                tw = bbox[2] - bbox[0]
+                draw.rounded_rectangle([(tag_x, y_cur), (tag_x + tw + 16, y_cur + 22)], radius=11, fill=(27, 158, 119))
+                draw.text((tag_x + 8, y_cur + 4), tag, fill="white", font=font_xs)
+                tag_x += tw + 24
+            y_cur += 22 + 16
 
         # Watermark
-        draw.line([(20, H - 40), (W - 20, H - 40)], fill=(51, 51, 51))
+        draw.line([(20, y_cur), (W - 20, y_cur)], fill=(51, 51, 51))
         wm = "steamstatsvisualized.streamlit.app"
         bbox = draw.textbbox((0, 0), wm, font=font_xs)
-        draw.text(((W - (bbox[2] - bbox[0])) // 2, H - 30), wm, fill=(85, 85, 85), font=font_xs)
+        draw.text(((W - (bbox[2] - bbox[0])) // 2, y_cur + 10), wm, fill=(85, 85, 85), font=font_xs)
 
         # Export
         buf = io.BytesIO()
@@ -797,7 +814,7 @@ if not show_comparison:
             key="dl_summary_card",
         )
     except Exception as e:
-        st.caption(f"📷 To save this card, take a screenshot.")
+        st.caption("📷 To save this card, take a screenshot.")
 
     share_buttons("Summary Card", f"🎮 Check out my Steam stats! {emoji} {title} — {stats['total_games']} games, {stats['total_hours']:,.0f} hours!", my_share_url)
 
