@@ -34,22 +34,16 @@ def download_chart(fig, filename, key, title="", player_name=""):
     try:
         import copy
         export_fig = copy.deepcopy(fig)
-        # Add title to the exported image for context
         if title:
             export_fig.update_layout(
                 title=dict(text=title, font=dict(size=20, color="white"), x=0.5, xanchor="center"),
                 margin=dict(t=60),
             )
-        # Include player name in filename
         if player_name:
             safe_name = player_name.replace(" ", "_").replace("/", "_")[:20]
             base, ext = filename.rsplit(".", 1)
             filename = f"{base}_{safe_name}.{ext}"
         img_bytes = export_fig.to_image(format="png", width=1200, height=700, scale=2)
-        st.markdown(
-            f'<div style="text-align:right;margin:-8px 0 12px 0;">',
-            unsafe_allow_html=True,
-        )
         st.download_button(
             label="⬇️ Save as Image",
             data=img_bytes,
@@ -57,9 +51,23 @@ def download_chart(fig, filename, key, title="", player_name=""):
             mime="image/png",
             key=f"dl_{key}",
         )
-        st.markdown('</div>', unsafe_allow_html=True)
-    except Exception:
+    except Exception as e:
         pass  # kaleido not available
+
+# Plotly config to make the camera/download button more visible
+PLOTLY_CONFIG = {
+    "displayModeBar": True,
+    "modeBarButtonsToRemove": ["zoom2d", "pan2d", "select2d", "lasso2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"],
+    "modeBarButtonsToAdd": [],
+    "toImageButtonOptions": {
+        "format": "png",
+        "filename": "steam_stats_chart",
+        "height": 700,
+        "width": 1200,
+        "scale": 2,
+    },
+    "displaylogo": False,
+}
 
 # --- Share button helper ---
 SITE_URL = "https://drkenreid-steam-stats-visualized.streamlit.app"
@@ -290,7 +298,7 @@ if not show_comparison:
         top_name = top.iloc[0]["name"]
         top_hours = top.iloc[0]["hours"]
         st.markdown(top_game_roast(top_name, top_hours))
-        st.plotly_chart(top_games_chart(top), width="stretch", key="top_games")
+        st.plotly_chart(top_games_chart(top), width="stretch", key="top_games", config=PLOTLY_CONFIG)
         download_chart(top_games_chart(top), "top_10_games.png", "top_games", title=f"{persona_name}'s Top 10 Games by Playtime", player_name=persona_name)
         share_buttons("Top 10", f"🏆 My most played Steam game is {top_name} with {top_hours:,.0f} hours!", my_share_url)
 
@@ -300,7 +308,7 @@ if not show_comparison:
     if platforms:
         col_plat_chart, col_plat_info = st.columns([2, 3])
         with col_plat_chart:
-            st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="platform_pie")
+            st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="platform_pie", config=PLOTLY_CONFIG)
             download_chart(platform_pie_chart(platforms), "platform_breakdown.png", "platform_pie", title=f"{persona_name}'s Gaming Platforms", player_name=persona_name)
         with col_plat_info:
             for platform, hours in sorted(platforms.items(), key=lambda x: -x[1]):
@@ -338,7 +346,7 @@ if not show_comparison:
     st.divider()
     st.subheader("📊 Playtime Distribution")
     st.caption("Spoiler: most of your games have barely been touched.")
-    st.plotly_chart(playtime_histogram(df), width="stretch", key="playtime_hist")
+    st.plotly_chart(playtime_histogram(df), width="stretch", key="playtime_hist", config=PLOTLY_CONFIG)
     download_chart(playtime_histogram(df), "playtime_distribution.png", "playtime_hist", title=f"{persona_name}'s Playtime Distribution", player_name=persona_name)
     share_buttons("Distribution", f"📊 My Steam playtime distribution is... concerning.", my_share_url)
 
@@ -366,7 +374,7 @@ if not show_comparison:
             top_genre = genre_df["genre"].value_counts().index[0]
             st.markdown(genre_commentary(top_genre))
             top_genre_map = top_games_per_genre(genre_df)
-            st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap")
+            st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap", config=PLOTLY_CONFIG)
             download_chart(genre_treemap(genre_df, top_games_map=top_genre_map), "genre_breakdown.png", "genre_treemap", title=f"{persona_name}'s Genre Breakdown", player_name=persona_name)
             tags = genre_personality_tags(genre_df)
             if tags:
@@ -390,7 +398,7 @@ if not show_comparison:
                 top_genre = genre_df["genre"].value_counts().index[0]
                 st.markdown(genre_commentary(top_genre))
                 top_genre_map = top_games_per_genre(genre_df)
-                st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap")
+                st.plotly_chart(genre_treemap(genre_df, top_games_map=top_genre_map), width="stretch", key="genre_treemap", config=PLOTLY_CONFIG)
                 download_chart(genre_treemap(genre_df, top_games_map=top_genre_map), "genre_breakdown.png", "genre_treemap", title=f"{persona_name}'s Genre Breakdown", player_name=persona_name)
                 tags = genre_personality_tags(genre_df)
                 if tags:
@@ -414,10 +422,10 @@ if not show_comparison:
                 st.markdown(f"Best bang for your buck: **{best_name}** at **${best_val:.2f}/hour**. Basically free entertainment.")
                 tab_best, tab_worst = st.tabs(["Best Value", "Worst Value"])
                 with tab_best:
-                    st.plotly_chart(cost_per_hour_chart(cph, best=True), width="stretch", key="cost_best")
+                    st.plotly_chart(cost_per_hour_chart(cph, best=True), width="stretch", key="cost_best", config=PLOTLY_CONFIG)
                     download_chart(cost_per_hour_chart(cph, best=True), "best_value_games.png", "cost_best", title=f"{persona_name}'s Best Value Games", player_name=persona_name)
                 with tab_worst:
-                    st.plotly_chart(cost_per_hour_chart(cph, best=False), width="stretch", key="cost_worst")
+                    st.plotly_chart(cost_per_hour_chart(cph, best=False), width="stretch", key="cost_worst", config=PLOTLY_CONFIG)
                     download_chart(cost_per_hour_chart(cph, best=False), "worst_value_games.png", "cost_worst", title=f"{persona_name}'s Worst Value Games", player_name=persona_name)
                 share_buttons("Cost", f"💰 Best value Steam game: {best_name} at ${best_val:.2f}/hour!", my_share_url)
             else:
@@ -436,7 +444,7 @@ if not show_comparison:
                 st.markdown(f"Top offender: **{expensive[0][0]}** at **${expensive[0][1]:.2f}**. "
                             f"Runner-up: **{expensive[1][0]}** (${expensive[1][1]:.2f}). "
                             f"The audacity. 💅")
-            st.plotly_chart(expensive_unplayed_chart(expensive), width="stretch", key="expensive_unplayed")
+            st.plotly_chart(expensive_unplayed_chart(expensive), width="stretch", key="expensive_unplayed", config=PLOTLY_CONFIG)
             download_chart(expensive_unplayed_chart(expensive), "most_expensive_unplayed.png", "expensive_unplayed", title=f"{persona_name}'s Most Expensive Unplayed Games", player_name=persona_name)
             share_buttons("Expensive", f"💸 I have ${total_wasted:.2f} worth of unplayed Steam games. I'm basically a charity.", my_share_url)
 
@@ -559,7 +567,7 @@ if not show_comparison:
     st.divider()
     st.subheader("🕹️ Recently Played (Last 2 Weeks)")
     if recent:
-        st.plotly_chart(recent_games_chart(recent), width="stretch", key="recent_games")
+        st.plotly_chart(recent_games_chart(recent), width="stretch", key="recent_games", config=PLOTLY_CONFIG)
         download_chart(recent_games_chart(recent), "recently_played.png", "recent_games", title=f"{persona_name}'s Recently Played Games", player_name=persona_name)
         recent_names = ", ".join(g["name"] for g in recent[:3])
         share_buttons("Recent", f"🕹️ Recently playing: {recent_names}", my_share_url)
@@ -588,7 +596,7 @@ if not show_comparison:
     st.subheader("📅 Game Timeline")
     timeline = game_timeline(df_all, n=20)
     if not timeline.empty:
-        st.plotly_chart(game_timeline_chart(timeline), width="stretch", key="timeline")
+        st.plotly_chart(game_timeline_chart(timeline), width="stretch", key="timeline", config=PLOTLY_CONFIG)
         download_chart(game_timeline_chart(timeline), "game_timeline.png", "timeline", title=f"{persona_name}'s Game Timeline", player_name=persona_name)
         st.caption("Your recent gaming history at a glance")
     else:
@@ -783,7 +791,7 @@ if show_comparison:
             f"{persona_name} **{item['p1_value']:,}** vs {persona_name_2} **{item['p2_value']:,}** "
             f"→ {winner_icon} {winner_text}"
         )
-    st.plotly_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), width="stretch", key="stats_compare")
+    st.plotly_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), width="stretch", key="stats_compare", config=PLOTLY_CONFIG)
     download_chart(stats_comparison_chart(stats, stats_2, persona_name, persona_name_2), "stats_showdown.png", "stats_compare", title=f"{persona_name} vs {persona_name_2} — Stats Showdown")
     share_buttons("Stats Showdown", f"⚔️ Steam Stats Showdown: {persona_name} vs {persona_name_2}!", my_share_url)
 
@@ -797,12 +805,12 @@ if show_comparison:
     col_u1.metric(f"🎯 Only {persona_name}", unique_p1)
     col_u2.metric(f"🎯 Only {persona_name_2}", unique_p2)
     if not shared_df.empty:
-        st.plotly_chart(shared_games_chart(shared_df, persona_name, persona_name_2), width="stretch", key="shared_games")
+        st.plotly_chart(shared_games_chart(shared_df, persona_name, persona_name_2), width="stretch", key="shared_games", config=PLOTLY_CONFIG)
         download_chart(shared_games_chart(shared_df, persona_name, persona_name_2), "shared_games.png", "shared_games", title=f"{persona_name} vs {persona_name_2} — Shared Games")
 
     # --- Top Games Comparison ---
     st.subheader("🏆 Top Games Comparison")
-    st.plotly_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), width="stretch", key="top_compare")
+    st.plotly_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), width="stretch", key="top_compare", config=PLOTLY_CONFIG)
     download_chart(top_games_comparison_chart(df, df_2, persona_name, persona_name_2), "top_games_comparison.png", "top_compare", title=f"{persona_name} vs {persona_name_2} — Top Games")
 
     # --- Platform Breakdown Side by Side ---
@@ -813,14 +821,14 @@ if show_comparison:
         with col_plat1:
             st.markdown(f"**{persona_name}**")
             if platforms:
-                st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="p1_platform_pie")
+                st.plotly_chart(platform_pie_chart(platforms), width="stretch", key="p1_platform_pie", config=PLOTLY_CONFIG)
                 download_chart(platform_pie_chart(platforms), "platform_breakdown.png", "p1_platform_pie", title=f"{persona_name}'s Platforms", player_name=persona_name)
             else:
                 st.info("No platform data")
         with col_plat2:
             st.markdown(f"**{persona_name_2}**")
             if platforms_2:
-                st.plotly_chart(platform_pie_chart(platforms_2), width="stretch", key="p2_platform_pie")
+                st.plotly_chart(platform_pie_chart(platforms_2), width="stretch", key="p2_platform_pie", config=PLOTLY_CONFIG)
                 download_chart(platform_pie_chart(platforms_2), "platform_breakdown.png", "p2_platform_pie", title=f"{persona_name_2}'s Platforms", player_name=persona_name_2)
             else:
                 st.info("No platform data")
