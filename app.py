@@ -7,6 +7,7 @@ from src.steam_api import (
     parse_steam_input, get_player_summary, get_owned_games,
     get_recent_games, get_app_details_batch, get_achievement_stats,
     get_player_achievements, get_global_achievement_percentages,
+    get_game_schema,
 )
 from src.analytics import (
     apply_time_filter, build_games_df, key_stats, top_games, unplayed_games,
@@ -427,7 +428,7 @@ if ach_stats:
     # ─── Recently Unlocked Achievements ─────────────────────────────
     st.markdown("#### 🕐 Recently Unlocked")
     ach_appids_for_detail = [a["appid"] for a in ach_stats]
-    recent_achs = recent_achievements(steam_id, ach_appids_for_detail, get_player_achievements, n=10)
+    recent_achs = recent_achievements(steam_id, ach_appids_for_detail, get_player_achievements, n=10, get_game_schema_fn=get_game_schema)
     if recent_achs:
         recent_ach_df = pd.DataFrame(recent_achs)[["game", "achievement_name", "unlock_date"]]
         recent_ach_df.columns = ["Game", "Achievement", "Unlocked"]
@@ -437,7 +438,7 @@ if ach_stats:
 
     # ─── Rarest Achievements ────────────────────────────────────────
     st.markdown("#### 💎 Rarest Achievements")
-    rare_achs = rarest_achievements(steam_id, ach_appids_for_detail, get_player_achievements, get_global_achievement_percentages, n=10)
+    rare_achs = rarest_achievements(steam_id, ach_appids_for_detail, get_player_achievements, get_global_achievement_percentages, n=10, get_game_schema_fn=get_game_schema)
     if rare_achs:
         rare_df = pd.DataFrame(rare_achs)[["achievement_name", "game", "global_percent"]]
         rare_df.columns = ["Achievement", "Game", "Global Unlock %"]

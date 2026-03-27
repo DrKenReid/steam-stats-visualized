@@ -334,18 +334,26 @@ def top_games_per_genre(genre_df: pd.DataFrame, n: int = 3) -> dict[str, list[st
 
 # --- Achievement helpers ---
 
-def recent_achievements(steam_id: str, appids: list[int], get_player_achievements_fn, n: int = 10) -> list[dict]:
+def recent_achievements(steam_id: str, appids: list[int], get_player_achievements_fn, n: int = 10, get_game_schema_fn=None) -> list[dict]:
     """Find the N most recently unlocked achievements across given games."""
     all_achievements = []
     for appid in appids:
         data = get_player_achievements_fn(steam_id, appid)
         if data and "achievements" in data:
             game_name = data.get("gameName", f"App {appid}")
+            # Build display name lookup from schema if available
+            display_names = {}
+            if get_game_schema_fn:
+                schema = get_game_schema_fn(appid)
+                if schema and "availableGameStats" in schema:
+                    for sa in schema["availableGameStats"].get("achievements", []):
+                        display_names[sa.get("name", "")] = sa.get("displayName", sa.get("name", ""))
             for ach in data["achievements"]:
                 if ach.get("achieved") and ach.get("unlocktime", 0) > 0:
+                    api_name = ach.get("apiname", ach.get("name", "Unknown"))
                     all_achievements.append({
                         "game": game_name,
-                        "achievement_name": ach.get("name", ach.get("apiname", "Unknown")),
+                        "achievement_name": display_names.get(api_name, api_name),
                         "unlock_date": datetime.fromtimestamp(ach["unlocktime"], tz=timezone.utc).strftime("%Y-%m-%d"),
                         "unlocktime": ach["unlocktime"],
                     })
@@ -353,7 +361,7 @@ def recent_achievements(steam_id: str, appids: list[int], get_player_achievement
     return all_achievements[:n]
 
 
-def rarest_achievements(steam_id: str, appids: list[int], get_player_achievements_fn, get_global_achievement_fn, n: int = 10) -> list[dict]:
+def rarest_achievements(steam_id: str, appids: list[int], get_player_achievements_fn, get_global_achievement_fn, n: int = 10, get_game_schema_fn=None) -> list[dict]:
     """Find user's rarest unlocked achievements by global unlock percentage."""
     candidates = []
     for appid in appids:
@@ -364,6 +372,13 @@ def rarest_achievements(steam_id: str, appids: list[int], get_player_achievement
         unlocked = {a.get("apiname", a.get("name", "")) for a in player_data["achievements"] if a.get("achieved")}
         if not unlocked:
             continue
+        # Build display name lookup from schema if available
+        display_names = {}
+        if get_game_schema_fn:
+            schema = get_game_schema_fn(appid)
+            if schema and "availableGameStats" in schema:
+                for sa in schema["availableGameStats"].get("achievements", []):
+                    display_names[sa.get("name", "")] = sa.get("displayName", sa.get("name", ""))
         global_data = get_global_achievement_fn(appid)
         if not global_data:
             continue
@@ -372,7 +387,7 @@ def rarest_achievements(steam_id: str, appids: list[int], get_player_achievement
             if api_name in unlocked:
                 candidates.append({
                     "game": game_name,
-                    "achievement_name": api_name,
+                    "achievement_name": display_names.get(api_name, api_name),
                     "global_percent": round(float(ach.get("percent", 100)), 2),
                 })
     candidates.sort(key=lambda x: x["global_percent"])
