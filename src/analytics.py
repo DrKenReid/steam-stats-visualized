@@ -373,7 +373,7 @@ def rarest_achievements(steam_id: str, appids: list[int], get_player_achievement
                 candidates.append({
                     "game": game_name,
                     "achievement_name": api_name,
-                    "global_percent": round(ach.get("percent", 100), 2),
+                    "global_percent": round(float(ach.get("percent", 100)), 2),
                 })
     candidates.sort(key=lambda x: x["global_percent"])
     return candidates[:n]
