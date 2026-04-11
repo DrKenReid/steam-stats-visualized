@@ -165,3 +165,17 @@ MIT — do whatever you want with it.
 ---
 
 *Built with [Streamlit](https://streamlit.io), [Plotly](https://plotly.com), and questionable life choices.*
+
+## Related
+
+- [Letterboxd Roasted](https://github.com/DrKenReid/Letterboxd-Roasted) — Spotify Wrapped for your Letterboxd
+- [Debt Payoff Simulator](https://github.com/DrKenReid/Debt-Payoff-Simulator) — compare debt repayment strategies
+- [kenreid.co.uk/data_science](https://www.kenreid.co.uk/data_science.html) — all projects, publications, and CV
+
+## Author
+
+**Ken Reid** — Data Scientist, photographer, and avid reader.
+
+- [kenreid.co.uk](https://www.kenreid.co.uk) — Portfolio & blog
+- [@kenreid.co.uk](https://bsky.app/profile/kenreid.co.uk) — Bluesky
+- [@DrKenReid](https://github.com/DrKenReid) — GitHub
